@@ -1,0 +1,12 @@
+# Claude Design handoff bundle (kept locally as reference)
+design_handoff_harmonica_trainer/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
