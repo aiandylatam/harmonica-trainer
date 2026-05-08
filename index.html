@@ -343,9 +343,9 @@
   }
   .harmonica-grid {
     display: grid;
-    grid-template-columns: 84px repeat(12, minmax(var(--cell-min-w), 1fr));
+    grid-template-columns: 84px repeat(var(--hole-count, 12), minmax(var(--cell-min-w), 1fr));
     gap: 6px;
-    min-width: 820px;
+    min-width: calc(84px + var(--hole-count, 12) * 60px + 12px);
   }
   .row-label {
     display: flex; align-items: center;
@@ -950,9 +950,9 @@
   </div>
 </div>
 
-<button class="tweaks-toggle" id="tweaks-toggle" aria-label="Tweaks"><span class="gear">⚙</span><span class="label-text">Tweaks</span></button>
+<button class="tweaks-toggle" id="tweaks-toggle" aria-label="Settings"><span class="gear">⚙</span><span class="label-text">Settings</span></button>
 <div class="tweaks-panel" id="tweaks-panel">
-  <h3>Tweaks</h3>
+  <h3>Settings</h3>
   <div class="tweak-row">
     <label>Harmonica</label>
     <div class="seg" id="tweak-size">
@@ -1484,10 +1484,11 @@ function renderHarmonica(mode) {
     scaleNoteSet = new Set(getScaleNotes(selectedKey, selectedScale));
     tonicName = selectedKey;
   }
-  let html = '<div class="harmonica-grid">';
+  const holeCount = HARMONICA.length;
+  let html = `<div class="harmonica-grid" style="--hole-count:${holeCount}">`;
   for (const row of ROW_DEFS) {
     html += `<div class="row-label">${row.label}</div>`;
-    for (let h = 0; h < 12; h++) {
+    for (let h = 0; h < holeCount; h++) {
       const hole = HARMONICA[h];
       const holeNum = h + 1;
       if (row.actionKey === 'hole') { html += `<div class="cell hole">${holeNum}</div>`; continue; }
@@ -1680,7 +1681,7 @@ function parseTabString(s) {
   for (const tok of tokens) {
     const m = tok.match(/^(\d{1,2})([BbDd])(\*?)$/);
     if (!m) continue;
-    const hole = parseInt(m[1]); if (hole < 1 || hole > 12) continue;
+    const hole = parseInt(m[1]); if (hole < 1 || hole > HARMONICA.length) continue;
     const action = m[2].toUpperCase(); const slide = m[3] === '*';
     let actionKey;
     if (action === 'B') actionKey = slide ? 'blowSlide' : 'blow';
