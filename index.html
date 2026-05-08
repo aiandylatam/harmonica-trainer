@@ -1778,8 +1778,8 @@ function setMode(m) {
   document.getElementById('mode-tabs-content').style.display = m === 'tabs' ? 'block' : 'none';
   if (m === 'scales') { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
   else { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
-  const lastDetected = recentDetections.length ? recentDetections[recentDetections.length - 1] : null;
-  if (lastDetected && isListening) highlightDetectedNote(lastDetected);
+  // Re-apply current pitch-detection highlight on the new mode's harmonica
+  if (isListening && lastDetectedNote) highlightDetectedNote(lastDetectedNote);
 }
 
 // =============================================================
