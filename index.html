@@ -1295,8 +1295,8 @@ let micStream = null, micAnalyser = null, pitchRAF = null, isListening = false;
 // MIN_FREQ down to 100 Hz so the 16-hole bass octave (C3 = 130.8 Hz) is detectable.
 // MAX_FREQ covers up through ~D7 with margin.
 const MIN_FREQ = 100, MAX_FREQ = 2400;
-// Detection state: lock onto a note after 2 consecutive matches; clear after ~12 silent frames (~200ms).
-let lastDetectedNote = null, consecutiveSameNote = 0, silentFrames = 0;
+// Detection-loop state: lock onto a note after 2 consecutive matches; clear after ~12 silent frames (~200ms).
+let pitchLoopNote = null, consecutiveSameNote = 0, silentFrames = 0;
 
 async function startListening() {
   try {
@@ -1309,7 +1309,7 @@ async function startListening() {
     micAnalyser.fftSize = 4096;
     source.connect(micAnalyser);
     isListening = true;
-    lastDetectedNote = null; consecutiveSameNote = 0; silentFrames = 0;
+    pitchLoopNote = null; consecutiveSameNote = 0; silentFrames = 0;
     updateMicButtons(true);
     showListeningPlaceholder();
     detectPitchLoop();
@@ -1321,7 +1321,7 @@ function stopListening() {
   pitchRAF = null;
   if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
   micAnalyser = null;
-  lastDetectedNote = null; consecutiveSameNote = 0; silentFrames = 0;
+  pitchLoopNote = null; consecutiveSameNote = 0; silentFrames = 0;
   updateMicButtons(false);
   clearListeningHighlights();
   updateDetectedDisplay(null);
@@ -1345,10 +1345,10 @@ function detectPitchLoop() {
 
   if (result) {
     silentFrames = 0;
-    if (result.note === lastDetectedNote) {
+    if (result.note === pitchLoopNote) {
       consecutiveSameNote++;
     } else {
-      lastDetectedNote = result.note;
+      pitchLoopNote = result.note;
       consecutiveSameNote = 1;
     }
     // Lock on after 2 matching detections; once locked, keep updating cents in real time
@@ -1360,7 +1360,7 @@ function detectPitchLoop() {
     silentFrames++;
     if (silentFrames > 12) {
       // Genuine silence — clear display
-      lastDetectedNote = null; consecutiveSameNote = 0;
+      pitchLoopNote = null; consecutiveSameNote = 0;
       if (silentFrames === 13) showListeningPlaceholder();
       clearListeningHighlights();
     }
@@ -1779,7 +1779,7 @@ function setMode(m) {
   if (m === 'scales') { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
   else { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
   // Re-apply current pitch-detection highlight on the new mode's harmonica
-  if (isListening && lastDetectedNote) highlightDetectedNote(lastDetectedNote);
+  if (isListening && pitchLoopNote) highlightDetectedNote(pitchLoopNote);
 }
 
 // =============================================================
