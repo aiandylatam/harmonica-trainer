@@ -1271,7 +1271,7 @@ function autoCorrelate(buf, sampleRate) {
   let SIZE = buf.length, rms = 0;
   for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
   rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.01) return -1;
+  if (rms < 0.005) return -1;  // lowered from 0.01 to handle quieter phone mics
   let r1 = 0, r2 = SIZE - 1, threshold = 0.2;
   for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < threshold) { r1 = i; break; }
   for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < threshold) { r2 = SIZE - i; break; }
@@ -1292,20 +1292,26 @@ function autoCorrelate(buf, sampleRate) {
 }
 
 let micStream = null, micAnalyser = null, pitchRAF = null, isListening = false;
-let recentDetections = [];
-const SMOOTH_WINDOW = 3, MIN_FREQ = 220, MAX_FREQ = 2400;
+// MIN_FREQ down to 100 Hz so the 16-hole bass octave (C3 = 130.8 Hz) is detectable.
+// MAX_FREQ covers up through ~D7 with margin.
+const MIN_FREQ = 100, MAX_FREQ = 2400;
+// Detection state: lock onto a note after 2 consecutive matches; clear after ~12 silent frames (~200ms).
+let lastDetectedNote = null, consecutiveSameNote = 0, silentFrames = 0;
 
 async function startListening() {
   try {
     const ctx = ensureAudioCtx();
     micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } });
+    // iOS Safari often suspends the context after the await; resume explicitly.
+    if (ctx.state === 'suspended') { try { await ctx.resume(); } catch(e){} }
     const source = ctx.createMediaStreamSource(micStream);
     micAnalyser = ctx.createAnalyser();
     micAnalyser.fftSize = 4096;
     source.connect(micAnalyser);
     isListening = true;
-    recentDetections = [];
+    lastDetectedNote = null; consecutiveSameNote = 0; silentFrames = 0;
     updateMicButtons(true);
+    showListeningPlaceholder();
     detectPitchLoop();
   } catch (err) { alert('Could not access microphone: ' + err.message); }
 }
@@ -1315,10 +1321,19 @@ function stopListening() {
   pitchRAF = null;
   if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
   micAnalyser = null;
-  recentDetections = [];
+  lastDetectedNote = null; consecutiveSameNote = 0; silentFrames = 0;
   updateMicButtons(false);
   clearListeningHighlights();
   updateDetectedDisplay(null);
+}
+function showListeningPlaceholder() {
+  document.querySelectorAll('[data-detected-note]').forEach(el => {
+    el.textContent = '···';
+    el.classList.add('empty');
+  });
+  document.querySelectorAll('[data-detected-freq]').forEach(el => {
+    el.textContent = 'Listening…';
+  });
 }
 function detectPitchLoop() {
   if (!isListening || !micAnalyser) return;
@@ -1327,15 +1342,28 @@ function detectPitchLoop() {
   const freq = autoCorrelate(buf, audioCtx.sampleRate);
   let result = null;
   if (freq > MIN_FREQ && freq < MAX_FREQ) result = freqToNoteAndCents(freq);
-  recentDetections.push(result ? result.note : null);
-  if (recentDetections.length > SMOOTH_WINDOW) recentDetections.shift();
-  const stable = recentDetections.length === SMOOTH_WINDOW && recentDetections.every(n => n === recentDetections[0]);
-  if (stable && result) {
-    updateDetectedDisplay(result);
-    highlightDetectedNote(result.note);
-  } else if (recentDetections.every(n => n === null)) {
-    updateDetectedDisplay(null);
-    clearListeningHighlights();
+
+  if (result) {
+    silentFrames = 0;
+    if (result.note === lastDetectedNote) {
+      consecutiveSameNote++;
+    } else {
+      lastDetectedNote = result.note;
+      consecutiveSameNote = 1;
+    }
+    // Lock on after 2 matching detections; once locked, keep updating cents in real time
+    if (consecutiveSameNote >= 2) {
+      updateDetectedDisplay(result);
+      highlightDetectedNote(result.note);
+    }
+  } else {
+    silentFrames++;
+    if (silentFrames > 12) {
+      // Genuine silence — clear display
+      lastDetectedNote = null; consecutiveSameNote = 0;
+      if (silentFrames === 13) showListeningPlaceholder();
+      clearListeningHighlights();
+    }
   }
   pitchRAF = requestAnimationFrame(detectPitchLoop);
 }
