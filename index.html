@@ -1204,6 +1204,20 @@ function freqToNoteAndCents(freq) {
   const name = NOTES[((midi % 12) + 12) % 12];
   return { note: name + octave, name, octave, cents, freq };
 }
+// Hole-numbering helpers.
+// We display hole 1 = C4 for ALL sizes (12/14/16), so the lower-octave holes
+// added on 14- and 16-hole layouts are labeled with NEGATIVE numbers
+// (-1 nearest hole 1, then -2, -3, -4 to the left). 0 is skipped.
+function holeNumForIndex(index, size = HARMONICA.length) {
+  const offset = size - 12;
+  return index < offset ? index - offset : index - offset + 1;
+}
+function indexForHoleNum(holeNum, size = HARMONICA.length) {
+  const offset = size - 12;
+  if (holeNum === 0) return -1;
+  return holeNum < 0 ? offset + holeNum : offset + holeNum - 1;
+}
+
 function findHarmonicaPosition(noteWithOct) {
   const order = ['blow', 'draw', 'blowSlide', 'drawSlide'];
   for (let h = 0; h < HARMONICA.length; h++) {
@@ -1211,7 +1225,8 @@ function findHarmonicaPosition(noteWithOct) {
       if (HARMONICA[h][k] === noteWithOct) {
         const slide = k.endsWith('Slide') ? '*' : '';
         const dir = k.startsWith('blow') ? 'B' : 'D';
-        return { hole: h+1, actionKey: k, notation: `${h+1}${dir}${slide}` };
+        const num = holeNumForIndex(h);
+        return { hole: num, actionKey: k, notation: `${num}${dir}${slide}` };
       }
     }
   }
@@ -1490,7 +1505,7 @@ function renderHarmonica(mode) {
     html += `<div class="row-label">${row.label}</div>`;
     for (let h = 0; h < holeCount; h++) {
       const hole = HARMONICA[h];
-      const holeNum = h + 1;
+      const holeNum = holeNumForIndex(h, holeCount);
       if (row.actionKey === 'hole') { html += `<div class="cell hole">${holeNum}</div>`; continue; }
       const note = hole[row.actionKey];
       const nName = noteName(note);
@@ -1679,14 +1694,18 @@ function parseTabString(s) {
   const tokens = s.trim().split(/\s+/).filter(Boolean);
   const result = [];
   for (const tok of tokens) {
-    const m = tok.match(/^(\d{1,2})([BbDd])(\*?)$/);
+    // Accept negative hole numbers for the bass octave on 14/16-hole layouts (e.g. -1B, -3D*)
+    const m = tok.match(/^(-?\d{1,2})([BbDd])(\*?)$/);
     if (!m) continue;
-    const hole = parseInt(m[1]); if (hole < 1 || hole > HARMONICA.length) continue;
+    const hole = parseInt(m[1]);
+    if (hole === 0) continue;
+    const idx = indexForHoleNum(hole);
+    if (idx < 0 || idx >= HARMONICA.length) continue;
     const action = m[2].toUpperCase(); const slide = m[3] === '*';
     let actionKey;
     if (action === 'B') actionKey = slide ? 'blowSlide' : 'blow';
     else                actionKey = slide ? 'drawSlide' : 'draw';
-    const note = HARMONICA[hole - 1][actionKey];
+    const note = HARMONICA[idx][actionKey];
     result.push({ hole, actionKey, note });
   }
   return result;
