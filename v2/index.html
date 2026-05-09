@@ -828,6 +828,7 @@
   <div class="mode-tabs">
     <button class="mode-tab active" data-mode="scales">Scales</button>
     <button class="mode-tab" data-mode="tabs">Tabs</button>
+    <button class="mode-tab" data-mode="practice">Practice</button>
   </div>
 
   <!-- ============== SCALES MODE ============== -->
@@ -946,6 +947,65 @@
         <button class="btn primary" id="save-btn">Save current tab</button>
       </div>
       <div id="saved-tabs"></div>
+    </div>
+  </div>
+
+  <!-- ============== PRACTICE MODE ============== -->
+  <div id="mode-practice-content" style="display:none">
+    <div class="controls">
+      <div class="control-group">
+        <label>Song</label>
+        <select id="song-select">
+          <option value="">— Choose a song —</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Or upload MIDI</label>
+        <label class="btn" for="midi-upload" style="cursor:pointer">📁 Upload .mid</label>
+        <input type="file" accept=".mid,.midi" id="midi-upload" style="display:none">
+      </div>
+      <div class="control-group">
+        <label>Tempo</label>
+        <div class="pitch-row" style="gap:6px">
+          <button class="btn pitch-btn" data-tempo-step="-10">−</button>
+          <input type="number" id="practice-bpm" min="40" max="240" step="5" value="100" style="width:64px">
+          <button class="btn pitch-btn" data-tempo-step="10">+</button>
+          <span class="pitch-unit">BPM</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="practice-song-info" class="info" style="margin-bottom:12px;min-height:18px"></div>
+
+    <div class="harmonica" id="harmonica-practice"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--blow)"></div>Blow</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--draw);border-color:var(--draw-stroke)"></div>Draw</div>
+      <div class="legend-item"><div class="legend-swatch" style="box-shadow:inset 0 0 0 2px var(--slide);background:var(--panel)"></div>+Slide</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--highlight)"></div>Current step</div>
+    </div>
+
+    <div class="section" style="margin-top:24px">
+      <div class="section-header">
+        <h2>Notes <span class="count" id="practice-count"></span></h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn primary" id="practice-play-btn">▶ Play</button>
+          <button class="btn" id="practice-step-btn">Step →</button>
+          <button class="btn" id="practice-reset-btn">⟲</button>
+        </div>
+      </div>
+      <div class="sequence" id="practice-sequence-container">
+        <div class="sequence-empty" id="practice-sequence-empty">Choose a song or upload a MIDI file to begin</div>
+        <div class="chips" id="practice-chips" style="display:none"></div>
+      </div>
+
+      <div class="staff-panel" style="margin-top:16px">
+        <div class="staff-header">
+          <h2>Staff <span class="count">classical notation</span></h2>
+        </div>
+        <div class="staff-svg-wrap" id="staff-practice"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1410,18 +1470,18 @@ function updateDetectedDisplay(detection) {
     }
   });
 }
+const HARM_ID_BY_MODE = { scales: 'harmonica-scales', tabs: 'harmonica-tabs', practice: 'harmonica-practice' };
+const STAFF_ID_BY_MODE = { scales: 'staff-scales', tabs: 'staff-tabs', practice: 'staff-practice' };
+
 function highlightDetectedNote(noteWithOct) {
   clearListeningHighlights();
-  const harmId = currentMode === 'scales' ? 'harmonica-scales' : 'harmonica-tabs';
-  const harm = document.getElementById(harmId);
+  const harm = document.getElementById(HARM_ID_BY_MODE[currentMode]);
   if (harm) harm.querySelectorAll(`.cell[data-note="${noteWithOct}"]`).forEach(el => el.classList.add('listening-match'));
-  const staffId = currentMode === 'scales' ? 'staff-scales' : 'staff-tabs';
-  setStaffDetected(staffId, noteWithOct);
+  setStaffDetected(STAFF_ID_BY_MODE[currentMode], noteWithOct);
 }
 function clearListeningHighlights() {
   document.querySelectorAll('.cell.listening-match').forEach(el => el.classList.remove('listening-match'));
-  setStaffDetected('staff-scales', null);
-  setStaffDetected('staff-tabs', null);
+  Object.values(STAFF_ID_BY_MODE).forEach(id => setStaffDetected(id, null));
 }
 
 // =============================================================
@@ -1520,8 +1580,9 @@ const PLAY_INTERVAL_MS = 700;
 // HARMONICA RENDER
 // =============================================================
 function renderHarmonica(mode) {
-  const containerId = mode === 'scales' ? 'harmonica-scales' : 'harmonica-tabs';
+  const containerId = HARM_ID_BY_MODE[mode] || 'harmonica-scales';
   const container = document.getElementById(containerId);
+  if (!container) return;
   let scaleNoteSet = null, tonicName = null;
   if (mode === 'scales') {
     scaleNoteSet = new Set(getScaleNotes(selectedKey, selectedScale));
@@ -1771,20 +1832,303 @@ function renderSavedTabs() {
 function setMode(m) {
   currentMode = m;
   stopPlay();
+  stopPracticePlay();
   document.body.classList.toggle('mode-scales', m === 'scales');
   document.body.classList.toggle('mode-tabs', m === 'tabs');
+  document.body.classList.toggle('mode-practice', m === 'practice');
   document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
   document.getElementById('mode-scales').style.display = m === 'scales' ? 'block' : 'none';
   document.getElementById('mode-tabs-content').style.display = m === 'tabs' ? 'block' : 'none';
+  document.getElementById('mode-practice-content').style.display = m === 'practice' ? 'block' : 'none';
   if (m === 'scales') { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
-  else { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
+  else if (m === 'tabs') { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
+  else if (m === 'practice') { renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff(); }
   // Re-apply current pitch-detection highlight on the new mode's harmonica
   if (isListening && pitchLoopNote) highlightDetectedNote(pitchLoopNote);
 }
 
 // =============================================================
+// PRACTICE MODE (load songs / MIDI, render chips + staff, step through)
+// =============================================================
+
+// Each song: { title, composer, defaultBpm, notes: [{ midi, time, duration }] }
+// time and duration are in BEATS (quarter notes), independent of BPM.
+const SONGS = {
+  'ode-to-joy': {
+    title: 'Ode to Joy',
+    composer: 'Beethoven · 9th Symphony',
+    defaultBpm: 100,
+    notes: (function() {
+      // Theme: E E F G | G F E D | C C D E | E. D D
+      //        E E F G | G F E D | C C D E | D. C C
+      const seq = [
+        [64,1],[64,1],[65,1],[67,1],
+        [67,1],[65,1],[64,1],[62,1],
+        [60,1],[60,1],[62,1],[64,1],
+        [64,1.5],[62,0.5],[62,2],
+        [64,1],[64,1],[65,1],[67,1],
+        [67,1],[65,1],[64,1],[62,1],
+        [60,1],[60,1],[62,1],[64,1],
+        [62,1.5],[60,0.5],[60,2],
+      ];
+      let t = 0;
+      return seq.map(([midi, dur]) => { const n = { midi, time: t, duration: dur }; t += dur; return n; });
+    })(),
+  },
+};
+
+let practiceSequence = [];        // array of { hole, actionKey, note, time, duration }
+let practiceStepIndex = -1;
+let practicePlayTimer = null;
+let practiceIsPlaying = false;
+let practiceBpm = 100;
+let currentSongTitle = '';
+
+function midiToNoteWithOct(midi) {
+  const octave = Math.floor(midi / 12) - 1;
+  const name = NOTES[((midi % 12) + 12) % 12];
+  return name + octave;
+}
+
+function midiToHarmonicaEntry(midi, time, duration) {
+  const note = midiToNoteWithOct(midi);
+  const pos = findHarmonicaPosition(note);
+  if (!pos) return null;
+  return { hole: pos.hole, actionKey: pos.actionKey, note, time, duration };
+}
+
+function songToPracticeSequence(songId) {
+  const song = SONGS[songId];
+  if (!song) return null;
+  const seq = song.notes.map(n => midiToHarmonicaEntry(n.midi, n.time, n.duration)).filter(Boolean);
+  return { sequence: seq, title: song.title, composer: song.composer, defaultBpm: song.defaultBpm };
+}
+
+function loadSong(songId) {
+  const data = songToPracticeSequence(songId);
+  if (!data) { practiceSequence = []; currentSongTitle = ''; renderPracticeSequence(); renderPracticeStaff(); updatePracticeInfo(''); return; }
+  practiceSequence = data.sequence;
+  practiceStepIndex = -1;
+  currentSongTitle = data.title;
+  practiceBpm = data.defaultBpm;
+  document.getElementById('practice-bpm').value = data.defaultBpm;
+  updatePracticeInfo(`${data.title} · ${data.composer}`);
+  renderPracticeSequence();
+  renderPracticeStaff();
+}
+
+function updatePracticeInfo(text) {
+  document.getElementById('practice-song-info').textContent = text;
+}
+
+function renderPracticeSequence() {
+  const empty = document.getElementById('practice-sequence-empty');
+  const chips = document.getElementById('practice-chips');
+  const counter = document.getElementById('practice-count');
+  if (practiceSequence.length === 0) {
+    empty.style.display = 'block'; chips.style.display = 'none'; counter.textContent = '';
+  } else {
+    empty.style.display = 'none'; chips.style.display = 'grid';
+    counter.textContent = `(${practiceSequence.length} ${practiceSequence.length===1?'note':'notes'})`;
+    chips.innerHTML = practiceSequence.map((t, i) => {
+      const cls = actionKeyToCls(t.actionKey);
+      const active = i === practiceStepIndex ? 'active' : '';
+      const dir = actionKeyToNotation(t.actionKey);
+      return `<div class="chip ${cls} ${active}" data-pidx="${i}" title="${t.hole}${dir} = ${t.note}">
+        <div class="chip-head"><span>${String(i+1).padStart(2,'0')}</span><span>${dir}</span></div>
+        <div class="chip-body"><div class="hole-num">${t.hole}</div><div class="note-name">${noteName(t.note)}</div></div>
+      </div>`;
+    }).join('');
+    chips.querySelectorAll('.chip').forEach(el => {
+      el.addEventListener('click', () => {
+        practiceStepIndex = parseInt(el.dataset.pidx);
+        renderPracticeSequence();
+        playTone(practiceSequence[practiceStepIndex].note);
+      });
+    });
+  }
+  highlightCurrentPracticeStepOnHarmonica();
+}
+
+function renderPracticeStaff() {
+  const entries = practiceSequence.map((t, idx) => ({
+    note: t.note,
+    tabLabel: `${t.hole}${actionKeyToNotation(t.actionKey)}`,
+    idx,
+  }));
+  renderStaff('staff-practice', entries);
+  setStaffActive('staff-practice', practiceStepIndex);
+}
+
+function highlightCurrentPracticeStepOnHarmonica() {
+  const harm = document.getElementById('harmonica-practice');
+  if (!harm) return;
+  harm.querySelectorAll('.cell.active-step').forEach(el => el.classList.remove('active-step'));
+  if (practiceStepIndex >= 0 && practiceStepIndex < practiceSequence.length) {
+    const t = practiceSequence[practiceStepIndex];
+    const el = harm.querySelector(`.cell[data-hole="${t.hole}"][data-action="${t.actionKey}"]`);
+    if (el) el.classList.add('active-step');
+  }
+}
+
+function stopPracticePlay() {
+  if (practicePlayTimer) clearTimeout(practicePlayTimer);
+  practicePlayTimer = null;
+  practiceIsPlaying = false;
+  const btn = document.getElementById('practice-play-btn');
+  if (btn) btn.textContent = '▶ Play';
+}
+
+function startPracticePlay() {
+  if (practiceSequence.length === 0) return;
+  practiceIsPlaying = true;
+  document.getElementById('practice-play-btn').textContent = '⏸ Pause';
+  practiceStepIndex = -1;
+  scheduleNextPracticeStep();
+}
+
+function scheduleNextPracticeStep() {
+  if (!practiceIsPlaying) return;
+  practiceStepIndex++;
+  if (practiceStepIndex >= practiceSequence.length) {
+    stopPracticePlay();
+    practiceStepIndex = -1;
+    renderPracticeSequence(); renderPracticeStaff();
+    return;
+  }
+  const note = practiceSequence[practiceStepIndex];
+  const beatMs = 60000 / practiceBpm;
+  const noteDurMs = note.duration * beatMs;
+  playTone(note.note, Math.min(noteDurMs / 1000 * 0.95, 0.6));
+  renderPracticeSequence(); renderPracticeStaff();
+  practicePlayTimer = setTimeout(scheduleNextPracticeStep, noteDurMs);
+}
+
+// ----- MIDI file parsing (Standard MIDI File format) -----
+// Returns { notes: [{ midi, time (beats), duration (beats) }], ppq }
+function parseMidiFile(arrayBuffer) {
+  const data = new DataView(arrayBuffer);
+  let p = 0;
+  function read32() { const v = data.getUint32(p); p += 4; return v; }
+  function read16() { const v = data.getUint16(p); p += 2; return v; }
+  function read8() { return data.getUint8(p++); }
+  function readVarLen() { let v = 0, b; do { b = read8(); v = (v << 7) | (b & 0x7f); } while (b & 0x80); return v; }
+  function readStr(n) { let s=''; for(let i=0;i<n;i++) s+=String.fromCharCode(read8()); return s; }
+
+  if (readStr(4) !== 'MThd') throw new Error('Not a MIDI file');
+  const headerLen = read32();
+  const format = read16();
+  const ntrks = read16();
+  const division = read16();
+  const ppq = (division & 0x8000) ? 96 : division; // assume metric timing
+
+  const allEvents = []; // { tick, type, ...payload }
+
+  for (let t = 0; t < ntrks; t++) {
+    if (readStr(4) !== 'MTrk') throw new Error('Bad track header');
+    const trackLen = read32();
+    const trackEnd = p + trackLen;
+    let tick = 0;
+    let runningStatus = 0;
+    while (p < trackEnd) {
+      const dt = readVarLen();
+      tick += dt;
+      let status = read8();
+      if (status < 0x80) { p--; status = runningStatus; } else { runningStatus = status; }
+      const hi = status & 0xF0;
+      if (status === 0xFF) {
+        const metaType = read8();
+        const len = readVarLen();
+        if (metaType === 0x51 && len === 3) {
+          // tempo (microseconds per quarter)
+          const usPerQ = (read8() << 16) | (read8() << 8) | read8();
+          allEvents.push({ tick, type: 'tempo', usPerQ });
+        } else { p += len; }
+      } else if (status === 0xF0 || status === 0xF7) {
+        const len = readVarLen(); p += len;
+      } else if (hi === 0x90) { // note on
+        const pitch = read8(), vel = read8();
+        if (vel > 0) allEvents.push({ tick, type: 'on', pitch, channel: status & 0x0f });
+        else allEvents.push({ tick, type: 'off', pitch, channel: status & 0x0f });
+      } else if (hi === 0x80) { // note off
+        const pitch = read8(); read8();
+        allEvents.push({ tick, type: 'off', pitch, channel: status & 0x0f });
+      } else if (hi === 0xA0 || hi === 0xB0 || hi === 0xE0) { read8(); read8(); }
+      else if (hi === 0xC0 || hi === 0xD0) { read8(); }
+      else { /* unknown — bail */ p = trackEnd; }
+    }
+  }
+
+  // Pair note-on/off into notes (in tick units)
+  allEvents.sort((a,b) => a.tick - b.tick);
+  const open = {};
+  const noteList = [];
+  for (const ev of allEvents) {
+    if (ev.type === 'on') {
+      const k = ev.channel + ':' + ev.pitch;
+      open[k] = ev.tick;
+    } else if (ev.type === 'off') {
+      const k = ev.channel + ':' + ev.pitch;
+      if (open[k] != null) {
+        noteList.push({ midi: ev.pitch, startTick: open[k], endTick: ev.tick });
+        delete open[k];
+      }
+    }
+  }
+  noteList.sort((a,b) => a.startTick - b.startTick);
+
+  // Convert ticks → beats (1 quarter = ppq ticks)
+  const notes = noteList.map(n => ({
+    midi: n.midi,
+    time: n.startTick / ppq,
+    duration: Math.max((n.endTick - n.startTick) / ppq, 0.05),
+  }));
+
+  // Pick monophonic melody: when multiple notes overlap, prefer the highest pitch.
+  // (Cheap heuristic: at each unique start time, keep the highest-pitch note.)
+  const byStart = new Map();
+  for (const n of notes) {
+    const key = n.time.toFixed(3);
+    const existing = byStart.get(key);
+    if (!existing || n.midi > existing.midi) byStart.set(key, n);
+  }
+  const melody = Array.from(byStart.values()).sort((a,b) => a.time - b.time);
+  return { notes: melody };
+}
+
+async function loadMidiFromFile(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const { notes } = parseMidiFile(buf);
+    if (!notes.length) { alert('No notes found in this MIDI file.'); return; }
+    const seq = notes.map(n => midiToHarmonicaEntry(n.midi, n.time, n.duration)).filter(Boolean);
+    if (!seq.length) { alert('None of the MIDI notes fit on the chromatic harmonica range.'); return; }
+    practiceSequence = seq;
+    practiceStepIndex = -1;
+    currentSongTitle = file.name.replace(/\.midi?$/i, '');
+    updatePracticeInfo(`Uploaded · ${currentSongTitle} · ${seq.length} notes`);
+    document.getElementById('song-select').value = '';
+    renderPracticeSequence();
+    renderPracticeStaff();
+  } catch (e) {
+    alert('Could not parse MIDI file: ' + e.message);
+  }
+}
+
+// =============================================================
 // INIT
 // =============================================================
+function populateSongSelect() {
+  const sel = document.getElementById('song-select');
+  if (!sel) return;
+  Object.entries(SONGS).forEach(([id, s]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${s.title} — ${s.composer}`;
+    sel.appendChild(opt);
+  });
+}
+populateSongSelect();
 renderScaleControls();
 setMode('scales');
 document.querySelectorAll('.mode-tab').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
@@ -1824,6 +2168,40 @@ document.getElementById('play-scale-btn').addEventListener('click', playScaleAsc
 document.querySelectorAll('[data-listen-toggle]').forEach(btn => {
   btn.addEventListener('click', () => { if (isListening) stopListening(); else startListening(); });
 });
+
+// Practice mode controls
+document.getElementById('song-select').addEventListener('change', e => {
+  if (e.target.value) loadSong(e.target.value);
+});
+document.getElementById('midi-upload').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) loadMidiFromFile(file);
+  e.target.value = '';
+});
+document.getElementById('practice-play-btn').addEventListener('click', () => {
+  if (practiceIsPlaying) stopPracticePlay();
+  else startPracticePlay();
+});
+document.getElementById('practice-step-btn').addEventListener('click', () => {
+  if (practiceSequence.length === 0) return;
+  stopPracticePlay();
+  practiceStepIndex = (practiceStepIndex + 1) % practiceSequence.length;
+  renderPracticeSequence(); renderPracticeStaff();
+  playTone(practiceSequence[practiceStepIndex].note);
+});
+document.getElementById('practice-reset-btn').addEventListener('click', () => {
+  stopPracticePlay();
+  practiceStepIndex = -1;
+  renderPracticeSequence(); renderPracticeStaff();
+});
+document.getElementById('practice-bpm').addEventListener('input', e => {
+  let v = parseInt(e.target.value);
+  if (!isNaN(v)) practiceBpm = Math.max(40, Math.min(240, v));
+});
+document.querySelectorAll('[data-tempo-step]').forEach(b => b.addEventListener('click', () => {
+  practiceBpm = Math.max(40, Math.min(240, practiceBpm + parseInt(b.dataset.tempoStep)));
+  document.getElementById('practice-bpm').value = practiceBpm;
+}));
 </script>
 </body>
 </html>
