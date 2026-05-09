@@ -445,7 +445,8 @@
   /* ============================================================
      TABS MODE — blow/draw/slide color encoding
      ============================================================ */
-  body.mode-tabs .cell.blow {
+  body.mode-tabs .cell.blow,
+  body.mode-practice .cell.blow {
     background: linear-gradient(180deg, #2a2a30 0%, #16161a 100%);
     color: var(--blow-text);
     box-shadow:
@@ -453,7 +454,8 @@
       inset 0 -1px 0 rgba(0,0,0,0.4),
       0 1px 2px rgba(0,0,0,0.20);
   }
-  body.mode-tabs .cell.draw {
+  body.mode-tabs .cell.draw,
+  body.mode-practice .cell.draw {
     background: linear-gradient(180deg, #ffffff 0%, #efebe1 100%);
     color: var(--draw-text);
     border: 1px solid var(--draw-stroke);
@@ -462,13 +464,16 @@
       inset 0 -1px 0 rgba(0,0,0,0.05),
       0 1px 2px rgba(0,0,0,0.06);
   }
-  body.mode-tabs .cell.slide-rim {
+  body.mode-tabs .cell.slide-rim,
+  body.mode-practice .cell.slide-rim {
     box-shadow: inset 0 0 0 2px var(--slide);
   }
-  body.mode-tabs .cell.blow.slide-rim {
+  body.mode-tabs .cell.blow.slide-rim,
+  body.mode-practice .cell.blow.slide-rim {
     box-shadow: inset 0 0 0 2px var(--slide), 0 1px 2px rgba(0,0,0,0.15);
   }
-  body.mode-tabs .cell.clickable:hover {
+  body.mode-tabs .cell.clickable:hover,
+  body.mode-practice .cell.clickable:hover {
     transform: translateY(-2px);
     filter: brightness(1.06);
   }
@@ -977,6 +982,21 @@
 
     <div id="practice-song-info" class="info" style="margin-bottom:12px;min-height:18px"></div>
 
+    <div class="listen-panel" id="listen-panel-practice">
+      <button class="btn mic-btn" data-listen-toggle="practice"><span class="mic-icon"></span>Listen</button>
+      <div class="detected-display">
+        <div class="detected-note empty" data-detected-note="practice">—</div>
+        <div class="detected-meta">
+          <div data-detected-freq="practice">— Hz · 0¢</div>
+          <div class="cents-bar">
+            <div class="cents-bar-center"></div>
+            <div class="cents-bar-fill" data-cents-fill="practice"></div>
+          </div>
+        </div>
+      </div>
+      <div class="listen-hint">Play along → matched note lights up in blue</div>
+    </div>
+
     <div class="harmonica" id="harmonica-practice"></div>
 
     <div class="legend">
@@ -984,6 +1004,7 @@
       <div class="legend-item"><div class="legend-swatch" style="background:var(--draw);border-color:var(--draw-stroke)"></div>Draw</div>
       <div class="legend-item"><div class="legend-swatch" style="box-shadow:inset 0 0 0 2px var(--slide);background:var(--panel)"></div>+Slide</div>
       <div class="legend-item"><div class="legend-swatch" style="background:var(--highlight)"></div>Current step</div>
+      <div class="legend-item"><div class="legend-swatch" style="box-shadow:0 0 0 2px var(--accent);background:var(--panel)"></div>Detected</div>
     </div>
 
     <div class="section" style="margin-top:24px">
@@ -1136,7 +1157,17 @@ try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e)
 
 function rerenderEverything() {
   if (currentMode === 'scales') { renderHarmonica('scales'); renderScalesStaff(); }
-  else { renderHarmonica('tabs'); renderSequence(); }
+  else if (currentMode === 'tabs') { renderHarmonica('tabs'); renderSequence(); }
+  else if (currentMode === 'practice') {
+    // Re-map the loaded song to the new harmonica layout (hole numbers + positions may shift on size change).
+    if (practiceSequence.length) {
+      practiceSequence = practiceSequence.map(t => {
+        const pos = findHarmonicaPosition(t.note);
+        return pos ? { ...t, hole: pos.hole, actionKey: pos.actionKey } : null;
+      }).filter(Boolean);
+    }
+    renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff();
+  }
 }
 
 // =============================================================
@@ -1279,18 +1310,23 @@ function indexForHoleNum(holeNum, size = HARMONICA.length) {
 }
 
 function findHarmonicaPosition(noteWithOct) {
-  const order = ['blow', 'draw', 'blowSlide', 'drawSlide'];
-  for (let h = 0; h < HARMONICA.length; h++) {
-    for (const k of order) {
+  // Prefer easier action (no-slide before slide), then prefer "main register" holes (>= 1)
+  // over the bass-octave negative-numbered holes when the same note exists in both.
+  const actionOrder = ['blow', 'draw', 'blowSlide', 'drawSlide'];
+  let bestNeg = null; // fallback if only negative-numbered hole has the note
+  for (const k of actionOrder) {
+    for (let h = 0; h < HARMONICA.length; h++) {
       if (HARMONICA[h][k] === noteWithOct) {
         const slide = k.endsWith('Slide') ? '*' : '';
         const dir = k.startsWith('blow') ? 'B' : 'D';
         const num = holeNumForIndex(h);
-        return { hole: num, actionKey: k, notation: `${num}${dir}${slide}` };
+        const result = { hole: num, actionKey: k, notation: `${num}${dir}${slide}` };
+        if (num >= 1) return result;
+        if (!bestNeg) bestNeg = result;
       }
     }
   }
-  return null;
+  return bestNeg;
 }
 
 // =============================================================
@@ -1830,6 +1866,9 @@ function renderSavedTabs() {
 // MODE SWITCHING
 // =============================================================
 function setMode(m) {
+  // Avoid carrying over an active step-highlight from a previous mode visit
+  if (currentMode === 'practice' && m !== 'practice') practiceStepIndex = -1;
+  if (currentMode === 'tabs' && m !== 'tabs') stepIndex = -1;
   currentMode = m;
   stopPlay();
   stopPracticePlay();
@@ -2101,12 +2140,18 @@ async function loadMidiFromFile(file) {
     const buf = await file.arrayBuffer();
     const { notes } = parseMidiFile(buf);
     if (!notes.length) { alert('No notes found in this MIDI file.'); return; }
-    const seq = notes.map(n => midiToHarmonicaEntry(n.midi, n.time, n.duration)).filter(Boolean);
-    if (!seq.length) { alert('None of the MIDI notes fit on the chromatic harmonica range.'); return; }
+    const mapped = notes.map(n => midiToHarmonicaEntry(n.midi, n.time, n.duration));
+    const seq = mapped.filter(Boolean);
+    const dropped = mapped.length - seq.length;
+    if (!seq.length) {
+      alert(`None of the ${notes.length} MIDI notes fit on the chromatic harmonica range (${HARMONICA[0].blow}–${HARMONICA[HARMONICA.length-1].blow}). Try a different size in Settings.`);
+      return;
+    }
     practiceSequence = seq;
     practiceStepIndex = -1;
     currentSongTitle = file.name.replace(/\.midi?$/i, '');
-    updatePracticeInfo(`Uploaded · ${currentSongTitle} · ${seq.length} notes`);
+    const droppedNote = dropped > 0 ? ` · ${dropped} out of range, skipped` : '';
+    updatePracticeInfo(`Uploaded · ${currentSongTitle} · ${seq.length} note${seq.length===1?'':'s'}${droppedNote}`);
     document.getElementById('song-select').value = '';
     renderPracticeSequence();
     renderPracticeStaff();
