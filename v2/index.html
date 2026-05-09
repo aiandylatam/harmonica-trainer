@@ -1771,7 +1771,7 @@ function renderSequence() {
       el.addEventListener('click', e => {
         if (e.target.closest('[data-remove]')) return;
         stepIndex = parseInt(el.dataset.idx);
-        renderSequence();
+        refreshTabsActiveStep();
         playTone(tabSequence[stepIndex].note);
       });
     });
@@ -1795,6 +1795,24 @@ function highlightCurrentStepOnHarmonica() {
   }
 }
 
+// Lightweight active-step refresh (Tabs mode): toggles classes only,
+// no innerHTML rebuild. Same fix as Practice mode — eliminates blink.
+function refreshTabsActiveStep() {
+  const chips = document.getElementById('chips');
+  if (chips) {
+    chips.querySelectorAll('.chip.active').forEach(el => el.classList.remove('active'));
+    if (stepIndex >= 0) {
+      const el = chips.querySelector(`[data-idx="${stepIndex}"]`);
+      if (el) {
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }
+  setStaffActive('staff-tabs', stepIndex);
+  highlightCurrentStepOnHarmonica();
+}
+
 // =============================================================
 // PLAY / STEP / PARSE / SAVE
 // =============================================================
@@ -1807,11 +1825,11 @@ function startPlay() {
   if (tabSequence.length === 0) return;
   isPlaying = true;
   document.getElementById('play-btn').textContent = '⏸ Pause';
-  stepIndex = -1; renderSequence();
+  stepIndex = -1; refreshTabsActiveStep();
   playTimer = setInterval(() => {
     stepIndex++;
-    if (stepIndex >= tabSequence.length) { stopPlay(); stepIndex = -1; renderSequence(); return; }
-    renderSequence();
+    if (stepIndex >= tabSequence.length) { stopPlay(); stepIndex = -1; refreshTabsActiveStep(); return; }
+    refreshTabsActiveStep();
     playTone(tabSequence[stepIndex].note, 0.5);
   }, PLAY_INTERVAL_MS);
 }
@@ -1981,7 +1999,7 @@ function renderPracticeSequence() {
     chips.querySelectorAll('.chip').forEach(el => {
       el.addEventListener('click', () => {
         practiceStepIndex = parseInt(el.dataset.pidx);
-        renderPracticeSequence();
+        refreshPracticeActiveStep();
         playTone(practiceSequence[practiceStepIndex].note);
       });
     });
@@ -2010,6 +2028,25 @@ function highlightCurrentPracticeStepOnHarmonica() {
   }
 }
 
+// Lightweight active-step refresh — toggles classes only, no DOM rebuild.
+// Used during playback / step / chip-click to avoid the chip-in animation
+// re-firing on every chip every step (which caused a visible blink).
+function refreshPracticeActiveStep() {
+  const chips = document.getElementById('practice-chips');
+  if (chips) {
+    chips.querySelectorAll('.chip.active').forEach(el => el.classList.remove('active'));
+    if (practiceStepIndex >= 0) {
+      const el = chips.querySelector(`[data-pidx="${practiceStepIndex}"]`);
+      if (el) {
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }
+  setStaffActive('staff-practice', practiceStepIndex);
+  highlightCurrentPracticeStepOnHarmonica();
+}
+
 function stopPracticePlay() {
   if (practicePlayTimer) clearTimeout(practicePlayTimer);
   practicePlayTimer = null;
@@ -2032,14 +2069,14 @@ function scheduleNextPracticeStep() {
   if (practiceStepIndex >= practiceSequence.length) {
     stopPracticePlay();
     practiceStepIndex = -1;
-    renderPracticeSequence(); renderPracticeStaff();
+    refreshPracticeActiveStep();
     return;
   }
   const note = practiceSequence[practiceStepIndex];
   const beatMs = 60000 / practiceBpm;
   const noteDurMs = note.duration * beatMs;
   playTone(note.note, Math.min(noteDurMs / 1000 * 0.95, 0.6));
-  renderPracticeSequence(); renderPracticeStaff();
+  refreshPracticeActiveStep();
   practicePlayTimer = setTimeout(scheduleNextPracticeStep, noteDurMs);
 }
 
@@ -2186,10 +2223,10 @@ document.getElementById('step-btn').addEventListener('click', () => {
   if (tabSequence.length === 0) return;
   stopPlay();
   stepIndex = (stepIndex + 1) % tabSequence.length;
-  renderSequence();
+  refreshTabsActiveStep();
   playTone(tabSequence[stepIndex].note);
 });
-document.getElementById('reset-step-btn').addEventListener('click', () => { stopPlay(); stepIndex = -1; renderSequence(); });
+document.getElementById('reset-step-btn').addEventListener('click', () => { stopPlay(); stepIndex = -1; refreshTabsActiveStep(); });
 document.getElementById('play-btn').addEventListener('click', () => { if (isPlaying) stopPlay(); else startPlay(); });
 document.getElementById('parse-btn').addEventListener('click', () => {
   const input = document.getElementById('parse-input');
@@ -2231,13 +2268,13 @@ document.getElementById('practice-step-btn').addEventListener('click', () => {
   if (practiceSequence.length === 0) return;
   stopPracticePlay();
   practiceStepIndex = (practiceStepIndex + 1) % practiceSequence.length;
-  renderPracticeSequence(); renderPracticeStaff();
+  refreshPracticeActiveStep();
   playTone(practiceSequence[practiceStepIndex].note);
 });
 document.getElementById('practice-reset-btn').addEventListener('click', () => {
   stopPracticePlay();
   practiceStepIndex = -1;
-  renderPracticeSequence(); renderPracticeStaff();
+  refreshPracticeActiveStep();
 });
 document.getElementById('practice-bpm').addEventListener('input', e => {
   let v = parseInt(e.target.value);
