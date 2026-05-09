@@ -2,7 +2,8 @@
 
 Practice tool for chromatic harmonica players (Hohner-style 12 / 14 / 16 hole, key of C, Solo tuning).
 
-**Live demo:** https://aiandylatam.github.io/harmonica-trainer/
+**Live demo (stable):** https://aiandylatam.github.io/harmonica-trainer/
+**Development version (in progress):** https://aiandylatam.github.io/harmonica-trainer/v2/
 
 ## What it does
 
