@@ -579,7 +579,8 @@
   .chips {
     display: grid;
     grid-template-columns: repeat(auto-fill, 64px);
-    gap: 6px;
+    column-gap: 6px;
+    row-gap: 18px;  /* extra vertical breathing room when chips wrap */
   }
   .chip {
     width: 64px; height: 56px;
@@ -1338,27 +1339,57 @@ function ensureAudioCtx() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
+// Flute-ish synth: dominant sine fundamental + very weak harmonics + warm
+// lowpass + ramping vibrato + soft exponential attack. Sounds airy, like a
+// recorder/flute, instead of the squarish tone we had before.
 function playTone(noteWithOct, duration = 0.45) {
   const ctx = ensureAudioCtx();
   const freq = noteToFreq(noteWithOct);
   const now = ctx.currentTime;
+
+  // Master envelope (soft attack → sustain → gentle release)
   const out = ctx.createGain();
-  out.gain.setValueAtTime(0, now);
-  out.gain.linearRampToValueAtTime(0.22, now + 0.015);
-  out.gain.setValueAtTime(0.22, now + duration - 0.08);
-  out.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  out.connect(ctx.destination);
-  const harmonics = [
-    { mult: 1, gain: 1.0,  type: 'sine'     },
-    { mult: 2, gain: 0.28, type: 'sine'     },
-    { mult: 3, gain: 0.12, type: 'triangle' },
+  const attack = 0.04;
+  const release = 0.10;
+  const sustainEnd = now + Math.max(duration - release, attack + 0.01);
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.20, now + attack);
+  out.gain.setValueAtTime(0.20, sustainEnd);
+  out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  // Lowpass for warmth (cuts harsh upper partials)
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = Math.min(freq * 6, 6000);
+  filter.Q.value = 0.6;
+  out.connect(filter);
+  filter.connect(ctx.destination);
+
+  // Ramping vibrato — flutes sustain notes with subtle pitch wobble (~5 Hz)
+  // Vibrato fades in after the initial attack so short notes don't wobble.
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = 5.0;
+  const lfoDepth = ctx.createGain();
+  lfoDepth.gain.setValueAtTime(0, now);
+  lfoDepth.gain.linearRampToValueAtTime(freq * 0.004, now + Math.min(0.20, duration * 0.6));
+  lfo.connect(lfoDepth);
+  lfo.start(now);
+  lfo.stop(now + duration + 0.05);
+
+  // Flute-like harmonic spectrum: very strong fundamental, soft 2nd, faint 3rd.
+  const partials = [
+    { mult: 1, gain: 1.00 },
+    { mult: 2, gain: 0.12 },
+    { mult: 3, gain: 0.05 },
   ];
-  for (const h of harmonics) {
+  for (const p of partials) {
     const osc = ctx.createOscillator();
-    osc.type = h.type;
-    osc.frequency.value = freq * h.mult;
+    osc.type = 'sine';
+    osc.frequency.value = freq * p.mult;
+    lfoDepth.connect(osc.frequency); // apply vibrato to each partial
     const g = ctx.createGain();
-    g.gain.value = h.gain;
+    g.gain.value = p.gain;
     osc.connect(g); g.connect(out);
     osc.start(now); osc.stop(now + duration + 0.05);
   }
