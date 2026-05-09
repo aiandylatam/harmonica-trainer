@@ -580,7 +580,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, 64px);
     column-gap: 6px;
-    row-gap: 18px;  /* extra vertical breathing room when chips wrap */
+    row-gap: 26px;  /* generous vertical breathing room when chips wrap */
   }
   .chip {
     width: 64px; height: 56px;
@@ -1339,55 +1339,60 @@ function ensureAudioCtx() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
-// Flute-ish synth: dominant sine fundamental + very weak harmonics + warm
-// lowpass + ramping vibrato + soft exponential attack. Sounds airy, like a
-// recorder/flute, instead of the squarish tone we had before.
+// Reedy synth: detuned sawtooth pair through a resonant lowpass with an
+// attack filter sweep — the classic recipe for brass / sax / reed sounds.
+// Result is more "blown" and harmonic-rich than a pure sine flute, which
+// tracks closer to a chromatic harmonica or alto sax timbre.
 function playTone(noteWithOct, duration = 0.45) {
   const ctx = ensureAudioCtx();
   const freq = noteToFreq(noteWithOct);
   const now = ctx.currentTime;
 
-  // Master envelope (soft attack → sustain → gentle release)
+  // Master amp envelope: quick reedy attack, sustain, gentle release.
   const out = ctx.createGain();
-  const attack = 0.04;
-  const release = 0.10;
+  const attack = 0.025;
+  const release = 0.12;
   const sustainEnd = now + Math.max(duration - release, attack + 0.01);
   out.gain.setValueAtTime(0.0001, now);
-  out.gain.exponentialRampToValueAtTime(0.20, now + attack);
-  out.gain.setValueAtTime(0.20, sustainEnd);
+  out.gain.exponentialRampToValueAtTime(0.16, now + attack);
+  out.gain.setValueAtTime(0.16, sustainEnd);
   out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-  // Lowpass for warmth (cuts harsh upper partials)
+  // Lowpass with resonance — opens up during attack ("blown" gesture)
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = Math.min(freq * 6, 6000);
-  filter.Q.value = 0.6;
+  const cutStart = Math.min(freq * 3.5, 5000);
+  const cutOpen  = Math.min(freq * 7,   8500);
+  filter.frequency.setValueAtTime(cutStart, now);
+  filter.frequency.linearRampToValueAtTime(cutOpen, now + attack);
+  filter.Q.value = 2.5;
   out.connect(filter);
   filter.connect(ctx.destination);
 
-  // Ramping vibrato — flutes sustain notes with subtle pitch wobble (~5 Hz)
-  // Vibrato fades in after the initial attack so short notes don't wobble.
+  // Ramping vibrato (~5.5 Hz, subtle); fades in after attack settles.
   const lfo = ctx.createOscillator();
   lfo.type = 'sine';
-  lfo.frequency.value = 5.0;
+  lfo.frequency.value = 5.5;
   const lfoDepth = ctx.createGain();
   lfoDepth.gain.setValueAtTime(0, now);
-  lfoDepth.gain.linearRampToValueAtTime(freq * 0.004, now + Math.min(0.20, duration * 0.6));
+  lfoDepth.gain.linearRampToValueAtTime(freq * 0.005, now + Math.min(0.20, duration * 0.6));
   lfo.connect(lfoDepth);
   lfo.start(now);
   lfo.stop(now + duration + 0.05);
 
-  // Flute-like harmonic spectrum: very strong fundamental, soft 2nd, faint 3rd.
+  // Two slightly-detuned sawtooth oscillators (rich harmonic content +
+  // chorus warmth from the beating between them).
   const partials = [
-    { mult: 1, gain: 1.00 },
-    { mult: 2, gain: 0.12 },
-    { mult: 3, gain: 0.05 },
+    { wave: 'sawtooth', detune: 0,    gain: 0.55 },
+    { wave: 'sawtooth', detune: +6,   gain: 0.35 }, // ~+0.35% pitch
+    { wave: 'sine',     detune: -1200, gain: 0.20 }, // sub-octave sine for body
   ];
   for (const p of partials) {
     const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = freq * p.mult;
-    lfoDepth.connect(osc.frequency); // apply vibrato to each partial
+    osc.type = p.wave;
+    osc.frequency.value = freq;
+    osc.detune.value = p.detune;
+    lfoDepth.connect(osc.frequency);
     const g = ctx.createGain();
     g.gain.value = p.gain;
     osc.connect(g); g.connect(out);
