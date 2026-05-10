@@ -1946,27 +1946,89 @@ function setMode(m) {
 
 // Each song: { title, composer, defaultBpm, notes: [{ midi, time, duration }] }
 // time and duration are in BEATS (quarter notes), independent of BPM.
+function buildSong(seq) {
+  let t = 0;
+  return seq.map(([midi, dur]) => { const n = { midi, time: t, duration: dur }; t += dur; return n; });
+}
+
 const SONGS = {
   'ode-to-joy': {
     title: 'Ode to Joy',
-    composer: 'Beethoven · 9th Symphony',
+    composer: 'Beethoven · 9th',
     defaultBpm: 100,
-    notes: (function() {
-      // Theme: E E F G | G F E D | C C D E | E. D D
-      //        E E F G | G F E D | C C D E | D. C C
-      const seq = [
-        [64,1],[64,1],[65,1],[67,1],
-        [67,1],[65,1],[64,1],[62,1],
-        [60,1],[60,1],[62,1],[64,1],
-        [64,1.5],[62,0.5],[62,2],
-        [64,1],[64,1],[65,1],[67,1],
-        [67,1],[65,1],[64,1],[62,1],
-        [60,1],[60,1],[62,1],[64,1],
-        [62,1.5],[60,0.5],[60,2],
-      ];
-      let t = 0;
-      return seq.map(([midi, dur]) => { const n = { midi, time: t, duration: dur }; t += dur; return n; });
-    })(),
+    notes: buildSong([
+      // Theme (4 phrases, all natural — beginner)
+      [64,1],[64,1],[65,1],[67,1],
+      [67,1],[65,1],[64,1],[62,1],
+      [60,1],[60,1],[62,1],[64,1],
+      [64,1.5],[62,0.5],[62,2],
+      [64,1],[64,1],[65,1],[67,1],
+      [67,1],[65,1],[64,1],[62,1],
+      [60,1],[60,1],[62,1],[64,1],
+      [62,1.5],[60,0.5],[60,2],
+    ]),
+  },
+  'twinkle-twinkle': {
+    title: 'Twinkle Twinkle Little Star',
+    composer: 'Trad. · C major',
+    defaultBpm: 110,
+    notes: buildSong([
+      // C C G G A A G | F F E E D D C
+      [60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],
+      [65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2],
+      // G G F F E E D | G G F F E E D
+      [67,1],[67,1],[65,1],[65,1],[64,1],[64,1],[62,2],
+      [67,1],[67,1],[65,1],[65,1],[64,1],[64,1],[62,2],
+      // C C G G A A G | F F E E D D C
+      [60,1],[60,1],[67,1],[67,1],[69,1],[69,1],[67,2],
+      [65,1],[65,1],[64,1],[64,1],[62,1],[62,1],[60,2],
+    ]),
+  },
+  'mary-had-a-little-lamb': {
+    title: 'Mary Had a Little Lamb',
+    composer: 'Trad. · C major',
+    defaultBpm: 120,
+    notes: buildSong([
+      // E D C D E E E | D D D | E G G
+      [64,1],[62,1],[60,1],[62,1],[64,1],[64,1],[64,2],
+      [62,1],[62,1],[62,2],[64,1],[67,1],[67,2],
+      // E D C D E E E E | D D E D C
+      [64,1],[62,1],[60,1],[62,1],[64,1],[64,1],[64,1],[64,1],
+      [62,1],[62,1],[64,1],[62,1],[60,4],
+    ]),
+  },
+  'happy-birthday': {
+    title: 'Happy Birthday',
+    composer: 'Trad. · C major (★ uses slide on B♭)',
+    defaultBpm: 100,
+    notes: buildSong([
+      // C C D C F E
+      [60,0.75],[60,0.25],[62,1],[60,1],[65,1],[64,2],
+      // C C D C G F
+      [60,0.75],[60,0.25],[62,1],[60,1],[67,1],[65,2],
+      // C C C' A F E D
+      [60,0.75],[60,0.25],[72,1],[69,1],[65,1],[64,1],[62,2],
+      // B♭ B♭ A F G F  (B♭ = MIDI 70 — needs slider)
+      [70,0.75],[70,0.25],[69,1],[65,1],[67,1],[65,2],
+    ]),
+  },
+  'greensleeves': {
+    title: 'Greensleeves',
+    composer: 'Trad. · A minor (★ uses slide on F♯ / G♯)',
+    defaultBpm: 90,
+    notes: buildSong([
+      // "Alas my love, you do me wrong"
+      // A — C D — E F E — D — B G — A — B G♯ — E
+      [69,1.5],[72,0.5],[74,1.5],[76,0.5],[77,1.5],[76,0.5],[74,2],
+      [71,0.5],[67,0.5],[69,2],[71,1],[68,1],[64,2],
+      // "to cast me off discourteously"
+      // A — C D — E F E — D — B A G — F♯ D — E
+      [69,1.5],[72,0.5],[74,1.5],[76,0.5],[77,1.5],[76,0.5],[74,2],
+      [71,0.5],[69,0.5],[67,1],[66,1],[62,1],[64,2],
+      // "And I have loved you so long"
+      [72,1.5],[74,0.5],[76,2],[77,1.5],[76,0.5],[74,2],
+      [71,0.5],[67,0.5],[69,1],[71,1],[68,1],[64,2],
+    ]),
   },
 };
 
