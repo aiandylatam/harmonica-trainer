@@ -150,12 +150,14 @@
      ============================================================ */
   .mode-tabs {
     display: inline-flex;
+    flex-wrap: wrap;
     gap: 0;
     background: var(--panel);
     padding: 4px;
     border-radius: 10px;
     margin: 8px 0 24px;
     border: 1px solid var(--hairline);
+    max-width: 100%;
   }
   .mode-tab {
     padding: 9px 22px;
@@ -942,6 +944,7 @@
     <button class="mode-tab active" data-mode="scales">Scales</button>
     <button class="mode-tab" data-mode="tabs">Tabs</button>
     <button class="mode-tab" data-mode="practice">Practice</button>
+    <button class="mode-tab" data-mode="game">Game</button>
   </div>
 
   <!-- ============== SCALES MODE ============== -->
@@ -1119,42 +1122,89 @@
       <div class="section-header">
         <h2>Notes <span class="count" id="practice-count"></span></h2>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <div class="view-toggle" id="practice-view-toggle">
-            <button data-view="notation" class="active">Notation</button>
-            <button data-view="game">Game</button>
-          </div>
           <button class="btn primary" id="practice-play-btn">▶ Play</button>
           <button class="btn" id="practice-step-btn">Step →</button>
           <button class="btn" id="practice-reset-btn">⟲</button>
         </div>
       </div>
 
-      <!-- Notation view (chips + staff) -->
-      <div id="practice-notation-view">
-        <div class="sequence" id="practice-sequence-container">
-          <div class="sequence-empty" id="practice-sequence-empty">Choose a song or upload a MIDI file to begin</div>
-          <div class="chips" id="practice-chips" style="display:none"></div>
-        </div>
-
-        <div class="staff-panel" style="margin-top:16px">
-          <div class="staff-header">
-            <h2>Staff <span class="count">classical notation</span></h2>
-          </div>
-          <div class="staff-svg-wrap" id="staff-practice"></div>
-        </div>
+      <div class="sequence" id="practice-sequence-container">
+        <div class="sequence-empty" id="practice-sequence-empty">Choose a song or upload a MIDI file to begin</div>
+        <div class="chips" id="practice-chips" style="display:none"></div>
       </div>
 
-      <!-- Game view (Guitar Hero–style falling notes) -->
-      <div id="practice-game-view" style="display:none">
-        <div class="game-canvas" id="game-canvas">
-          <div class="game-lanes" id="game-lanes"></div>
-          <div class="game-notes" id="game-notes"></div>
-          <div class="game-hit-line" id="game-hit-line"></div>
-          <div class="game-status" id="game-status">Press Play</div>
+      <div class="staff-panel" style="margin-top:16px">
+        <div class="staff-header">
+          <h2>Staff <span class="count">classical notation</span></h2>
         </div>
-        <p class="info" style="margin-top:0">Notes fall from the top — when one crosses the gold line, that's when to play it. Color encodes blow / draw, gold rim = use the slider.</p>
+        <div class="staff-svg-wrap" id="staff-practice"></div>
       </div>
     </div>
+  </div>
+
+  <!-- ============== GAME MODE (Guitar Hero) ============== -->
+  <div id="mode-game-content" style="display:none">
+    <div class="controls">
+      <div class="control-group">
+        <label>Song</label>
+        <select id="game-song-select">
+          <option value="">— Choose a song —</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Or upload MIDI</label>
+        <label class="btn" for="game-midi-upload" style="cursor:pointer">📁 Upload .mid</label>
+        <input type="file" accept=".mid,.midi" id="game-midi-upload" style="display:none">
+      </div>
+      <div class="control-group">
+        <label>Tempo</label>
+        <div class="pitch-row" style="gap:6px">
+          <button class="btn pitch-btn" data-game-tempo-step="-10">−</button>
+          <input type="number" id="game-bpm" min="40" max="240" step="5" value="100" style="width:64px">
+          <button class="btn pitch-btn" data-game-tempo-step="10">+</button>
+          <span class="pitch-unit">BPM</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>&nbsp;</label>
+        <button class="btn primary" id="game-play-btn">▶ Play</button>
+      </div>
+    </div>
+
+    <div id="game-song-info" class="info" style="margin-bottom:12px;min-height:18px"></div>
+
+    <div class="listen-panel" id="listen-panel-game">
+      <button class="btn mic-btn" data-listen-toggle="game"><span class="mic-icon"></span>Listen</button>
+      <div class="detected-display">
+        <div class="detected-note empty" data-detected-note="game">—</div>
+        <div class="detected-meta">
+          <div data-detected-freq="game">— Hz · 0¢</div>
+          <div class="cents-bar">
+            <div class="cents-bar-center"></div>
+            <div class="cents-bar-fill" data-cents-fill="game"></div>
+          </div>
+        </div>
+      </div>
+      <div class="listen-hint">Play along → matched note lights up in blue</div>
+    </div>
+
+    <div class="game-canvas" id="game-canvas">
+      <div class="game-lanes" id="game-lanes"></div>
+      <div class="game-notes" id="game-notes"></div>
+      <div class="game-hit-line" id="game-hit-line"></div>
+      <div class="game-status" id="game-status">Choose a song and press Play</div>
+    </div>
+
+    <div class="harmonica" id="harmonica-game"></div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--blow)"></div>Blow</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--draw);border-color:var(--draw-stroke)"></div>Draw</div>
+      <div class="legend-item"><div class="legend-swatch" style="box-shadow:inset 0 0 0 2px var(--slide);background:var(--panel)"></div>+Slide</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--accent-slide)"></div>Hit line</div>
+      <div class="legend-item"><div class="legend-swatch" style="box-shadow:0 0 0 2px var(--accent);background:var(--panel)"></div>Detected</div>
+    </div>
+    <p class="info">Notes fall from the top — when one crosses the gold line, that's the moment to play it. Color = blow/draw; gold rim = use the slider.</p>
   </div>
 </div>
 
@@ -1167,6 +1217,16 @@
       <button data-size="12" class="active">12-hole</button>
       <button data-size="14">14-hole</button>
       <button data-size="16">16-hole</button>
+    </div>
+  </div>
+  <div class="tweak-row">
+    <label>Tone</label>
+    <div class="seg" id="tweak-tone">
+      <button data-tone="harmonica" class="active">Harm</button>
+      <button data-tone="flute">Flute</button>
+      <button data-tone="brass">Brass</button>
+      <button data-tone="piano">Piano</button>
+      <button data-tone="beep">Beep</button>
     </div>
   </div>
   <div class="tweak-row">
@@ -1209,7 +1269,8 @@ const TWEAKS_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#c2410c",
   "density": "compact",
   "size": "12",
-  "pitch": 440
+  "pitch": 440,
+  "tone": "harmonica"
 }/*EDITMODE-END*/;
 const TWEAKS_STORAGE_KEY = 'harmonicaTweaks';
 
@@ -1227,6 +1288,7 @@ function applyTweaks(t) {
   document.querySelectorAll('#tweak-accent .swatch').forEach(s => s.classList.toggle('active', s.dataset.accent === t.accent));
   document.querySelectorAll('#tweak-density button').forEach(b => b.classList.toggle('active', b.dataset.density === t.density));
   document.querySelectorAll('#tweak-size button').forEach(b => b.classList.toggle('active', b.dataset.size === String(t.size)));
+  document.querySelectorAll('#tweak-tone button').forEach(b => b.classList.toggle('active', b.dataset.tone === t.tone));
   const pitchInput = document.getElementById('tweak-pitch');
   if (pitchInput) pitchInput.value = t.pitch;
   document.querySelectorAll('.pitch-presets button').forEach(b => b.classList.toggle('active', parseInt(b.dataset.pitch) === t.pitch));
@@ -1245,6 +1307,7 @@ document.getElementById('tweaks-toggle').addEventListener('click', () => {
 });
 document.querySelectorAll('#tweak-accent .swatch').forEach(s => s.addEventListener('click', () => { tweaks.accent = s.dataset.accent; applyTweaks(tweaks); persistTweaks(); }));
 document.querySelectorAll('#tweak-density button').forEach(b => b.addEventListener('click', () => { tweaks.density = b.dataset.density; applyTweaks(tweaks); persistTweaks(); }));
+document.querySelectorAll('#tweak-tone button').forEach(b => b.addEventListener('click', () => { tweaks.tone = b.dataset.tone; applyTweaks(tweaks); persistTweaks(); }));
 document.querySelectorAll('#tweak-size button').forEach(b => b.addEventListener('click', () => {
   tweaks.size = b.dataset.size;
   HARMONICA = HARMONICAS[tweaks.size];
@@ -1294,8 +1357,15 @@ function rerenderEverything() {
       }).filter(Boolean);
     }
     renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff();
-    renderGameLanes(); renderGameNotes();
-    if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
+  } else if (currentMode === 'game') {
+    if (practiceSequence.length) {
+      practiceSequence = practiceSequence.map(t => {
+        const pos = findHarmonicaPosition(t.note);
+        return pos ? { ...t, hole: pos.hole, actionKey: pos.actionKey } : null;
+      }).filter(Boolean);
+    }
+    renderHarmonica('game'); renderGameLanes(); renderGameNotes();
+    requestAnimationFrame(positionAllGameNotes);
   }
 }
 
@@ -1467,65 +1537,207 @@ function ensureAudioCtx() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
 }
-// Reedy synth: detuned sawtooth pair through a resonant lowpass with an
-// attack filter sweep — the classic recipe for brass / sax / reed sounds.
-// Result is more "blown" and harmonic-rich than a pure sine flute, which
-// tracks closer to a chromatic harmonica or alto sax timbre.
-function playTone(noteWithOct, duration = 0.45) {
+// =============================================================
+// TONE PRESETS — 5 different synthesizer voices, selectable in Settings.
+// Each takes a note string and a duration in seconds and writes audio
+// nodes that schedule themselves; they don't return anything.
+// =============================================================
+
+// Helper: builds an LFO that fades in vibrato after a delay
+function buildVibrato(ctx, now, freq, depthHz, rateHz, fadeInSec, totalSec) {
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = rateHz;
+  const lfoDepth = ctx.createGain();
+  lfoDepth.gain.setValueAtTime(0, now);
+  lfoDepth.gain.linearRampToValueAtTime(depthHz, now + fadeInSec);
+  lfo.connect(lfoDepth);
+  lfo.start(now);
+  lfo.stop(now + totalSec);
+  return lfoDepth;
+}
+
+// HARMONICA — strong fundamental + rich 2nd-5th harmonics + tiny square buzz.
+// Mimics free-reed instruments: sustained, expressive, slightly nasal.
+function harmonicaTone(noteWithOct, duration = 0.45) {
   const ctx = ensureAudioCtx();
   const freq = noteToFreq(noteWithOct);
   const now = ctx.currentTime;
-
-  // Master amp envelope: quick reedy attack, sustain, gentle release.
   const out = ctx.createGain();
-  const attack = 0.025;
-  const release = 0.12;
+  const attack = 0.018, release = 0.08;
+  const sustainEnd = now + Math.max(duration - release, attack + 0.01);
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.18, now + attack);
+  out.gain.setValueAtTime(0.18, sustainEnd);
+  out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = Math.min(freq * 9, 9000);
+  filter.Q.value = 0.9;
+  out.connect(filter); filter.connect(ctx.destination);
+  const vib = buildVibrato(ctx, now, freq, freq * 0.0035, 6.0, Math.min(0.18, duration * 0.5), duration + 0.05);
+  const partials = [
+    { mult: 1, gain: 1.00, type: 'sine' },
+    { mult: 2, gain: 0.55, type: 'sine' },
+    { mult: 3, gain: 0.30, type: 'sine' },
+    { mult: 4, gain: 0.15, type: 'sine' },
+    { mult: 5, gain: 0.07, type: 'sine' },
+    { mult: 1, gain: 0.04, type: 'square' }, // a touch of reed buzz
+  ];
+  for (const p of partials) {
+    const osc = ctx.createOscillator();
+    osc.type = p.type;
+    osc.frequency.value = freq * p.mult;
+    vib.connect(osc.frequency);
+    const g = ctx.createGain(); g.gain.value = p.gain;
+    osc.connect(g); g.connect(out);
+    osc.start(now); osc.stop(now + duration + 0.05);
+  }
+}
+
+// FLUTE — pure sine fundamental with very weak harmonics.
+function fluteTone(noteWithOct, duration = 0.45) {
+  const ctx = ensureAudioCtx();
+  const freq = noteToFreq(noteWithOct);
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  const attack = 0.05, release = 0.10;
+  const sustainEnd = now + Math.max(duration - release, attack + 0.01);
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.22, now + attack);
+  out.gain.setValueAtTime(0.22, sustainEnd);
+  out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = Math.min(freq * 5, 5500);
+  filter.Q.value = 0.6;
+  out.connect(filter); filter.connect(ctx.destination);
+  const vib = buildVibrato(ctx, now, freq, freq * 0.004, 5.0, Math.min(0.22, duration * 0.6), duration + 0.05);
+  const partials = [
+    { mult: 1, gain: 1.00 },
+    { mult: 2, gain: 0.10 },
+    { mult: 3, gain: 0.04 },
+  ];
+  for (const p of partials) {
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq * p.mult;
+    vib.connect(osc.frequency);
+    const g = ctx.createGain(); g.gain.value = p.gain;
+    osc.connect(g); g.connect(out);
+    osc.start(now); osc.stop(now + duration + 0.05);
+  }
+}
+
+// BRASS — detuned sawtooth pair, resonant lowpass with attack sweep.
+function brassyTone(noteWithOct, duration = 0.45) {
+  const ctx = ensureAudioCtx();
+  const freq = noteToFreq(noteWithOct);
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  const attack = 0.025, release = 0.12;
   const sustainEnd = now + Math.max(duration - release, attack + 0.01);
   out.gain.setValueAtTime(0.0001, now);
   out.gain.exponentialRampToValueAtTime(0.16, now + attack);
   out.gain.setValueAtTime(0.16, sustainEnd);
   out.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-  // Lowpass with resonance — opens up during attack ("blown" gesture)
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  const cutStart = Math.min(freq * 3.5, 5000);
-  const cutOpen  = Math.min(freq * 7,   8500);
-  filter.frequency.setValueAtTime(cutStart, now);
-  filter.frequency.linearRampToValueAtTime(cutOpen, now + attack);
+  filter.frequency.setValueAtTime(Math.min(freq * 3.5, 5000), now);
+  filter.frequency.linearRampToValueAtTime(Math.min(freq * 7, 8500), now + attack);
   filter.Q.value = 2.5;
-  out.connect(filter);
-  filter.connect(ctx.destination);
-
-  // Ramping vibrato (~5.5 Hz, subtle); fades in after attack settles.
-  const lfo = ctx.createOscillator();
-  lfo.type = 'sine';
-  lfo.frequency.value = 5.5;
-  const lfoDepth = ctx.createGain();
-  lfoDepth.gain.setValueAtTime(0, now);
-  lfoDepth.gain.linearRampToValueAtTime(freq * 0.005, now + Math.min(0.20, duration * 0.6));
-  lfo.connect(lfoDepth);
-  lfo.start(now);
-  lfo.stop(now + duration + 0.05);
-
-  // Two slightly-detuned sawtooth oscillators (rich harmonic content +
-  // chorus warmth from the beating between them).
-  const partials = [
+  out.connect(filter); filter.connect(ctx.destination);
+  const vib = buildVibrato(ctx, now, freq, freq * 0.005, 5.5, Math.min(0.20, duration * 0.6), duration + 0.05);
+  const layers = [
     { wave: 'sawtooth', detune: 0,    gain: 0.55 },
-    { wave: 'sawtooth', detune: +6,   gain: 0.35 }, // ~+0.35% pitch
-    { wave: 'sine',     detune: -1200, gain: 0.20 }, // sub-octave sine for body
+    { wave: 'sawtooth', detune: +6,   gain: 0.35 },
+    { wave: 'sine',     detune: -1200, gain: 0.20 },
   ];
-  for (const p of partials) {
+  for (const l of layers) {
     const osc = ctx.createOscillator();
-    osc.type = p.wave;
+    osc.type = l.wave;
     osc.frequency.value = freq;
-    osc.detune.value = p.detune;
-    lfoDepth.connect(osc.frequency);
-    const g = ctx.createGain();
-    g.gain.value = p.gain;
+    osc.detune.value = l.detune;
+    vib.connect(osc.frequency);
+    const g = ctx.createGain(); g.gain.value = l.gain;
     osc.connect(g); g.connect(out);
     osc.start(now); osc.stop(now + duration + 0.05);
   }
+}
+
+// PIANO — instant attack, exponential decay, triangle + sine harmonic stack.
+function pianoTone(noteWithOct, duration = 0.45) {
+  const ctx = ensureAudioCtx();
+  const freq = noteToFreq(noteWithOct);
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  // Piano-like envelope: instant attack, mid decay, slow release
+  const decayTime = Math.min(duration * 0.7, 1.0);
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.32, now + 0.005);
+  out.gain.exponentialRampToValueAtTime(0.06, now + decayTime);
+  out.gain.exponentialRampToValueAtTime(0.0001, now + duration + 0.1);
+  // Brightness rolls off as note decays
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(Math.min(freq * 9, 9000), now);
+  filter.frequency.exponentialRampToValueAtTime(Math.min(freq * 4, 4000), now + duration + 0.1);
+  filter.Q.value = 0.8;
+  out.connect(filter); filter.connect(ctx.destination);
+  const partials = [
+    { mult: 1, gain: 1.00, type: 'triangle' },
+    { mult: 2, gain: 0.50, type: 'sine' },
+    { mult: 3, gain: 0.28, type: 'sine' },
+    { mult: 4, gain: 0.15, type: 'sine' },
+    { mult: 6, gain: 0.06, type: 'sine' },
+  ];
+  for (const p of partials) {
+    const osc = ctx.createOscillator();
+    osc.type = p.type;
+    osc.frequency.value = freq * p.mult;
+    const g = ctx.createGain(); g.gain.value = p.gain;
+    osc.connect(g); g.connect(out);
+    osc.start(now); osc.stop(now + duration + 0.15);
+  }
+}
+
+// BEEP — the original additive sine recipe (sine + sine 2nd + tri 3rd).
+function beepTone(noteWithOct, duration = 0.45) {
+  const ctx = ensureAudioCtx();
+  const freq = noteToFreq(noteWithOct);
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0, now);
+  out.gain.linearRampToValueAtTime(0.22, now + 0.015);
+  out.gain.setValueAtTime(0.22, now + Math.max(duration - 0.08, 0.05));
+  out.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  out.connect(ctx.destination);
+  const harmonics = [
+    { mult: 1, gain: 1.0,  type: 'sine' },
+    { mult: 2, gain: 0.28, type: 'sine' },
+    { mult: 3, gain: 0.12, type: 'triangle' },
+  ];
+  for (const h of harmonics) {
+    const osc = ctx.createOscillator();
+    osc.type = h.type;
+    osc.frequency.value = freq * h.mult;
+    const g = ctx.createGain(); g.gain.value = h.gain;
+    osc.connect(g); g.connect(out);
+    osc.start(now); osc.stop(now + duration + 0.05);
+  }
+}
+
+const TONE_PRESETS = {
+  harmonica: harmonicaTone,
+  flute:     fluteTone,
+  brass:     brassyTone,
+  piano:     pianoTone,
+  beep:      beepTone,
+};
+
+function playTone(noteWithOct, duration = 0.45) {
+  const fn = TONE_PRESETS[tweaks.tone] || TONE_PRESETS.harmonica;
+  fn(noteWithOct, duration);
 }
 function autoCorrelate(buf, sampleRate) {
   let SIZE = buf.length, rms = 0;
@@ -1670,7 +1882,7 @@ function updateDetectedDisplay(detection) {
     }
   });
 }
-const HARM_ID_BY_MODE = { scales: 'harmonica-scales', tabs: 'harmonica-tabs', practice: 'harmonica-practice' };
+const HARM_ID_BY_MODE = { scales: 'harmonica-scales', tabs: 'harmonica-tabs', practice: 'harmonica-practice', game: 'harmonica-game' };
 const STAFF_ID_BY_MODE = { scales: 'staff-scales', tabs: 'staff-tabs', practice: 'staff-practice' };
 
 function highlightDetectedNote(noteWithOct) {
@@ -2051,21 +2263,33 @@ function setMode(m) {
   // Avoid carrying over an active step-highlight from a previous mode visit
   if (currentMode === 'practice' && m !== 'practice') practiceStepIndex = -1;
   if (currentMode === 'tabs' && m !== 'tabs') stepIndex = -1;
+  if (currentMode === 'game' && m !== 'game') stopGame();
   currentMode = m;
   stopPlay();
   stopPracticePlay();
-  document.body.classList.toggle('mode-scales', m === 'scales');
-  document.body.classList.toggle('mode-tabs', m === 'tabs');
+  document.body.classList.toggle('mode-scales',   m === 'scales');
+  document.body.classList.toggle('mode-tabs',     m === 'tabs');
   document.body.classList.toggle('mode-practice', m === 'practice');
+  document.body.classList.toggle('mode-game',     m === 'game');
   document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
-  document.getElementById('mode-scales').style.display = m === 'scales' ? 'block' : 'none';
-  document.getElementById('mode-tabs-content').style.display = m === 'tabs' ? 'block' : 'none';
+  document.getElementById('mode-scales').style.display          = m === 'scales'   ? 'block' : 'none';
+  document.getElementById('mode-tabs-content').style.display    = m === 'tabs'     ? 'block' : 'none';
   document.getElementById('mode-practice-content').style.display = m === 'practice' ? 'block' : 'none';
-  if (m === 'scales') { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
-  else if (m === 'tabs') { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
-  else if (m === 'practice') { renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff(); renderGameLanes(); renderGameNotes(); }
+  document.getElementById('mode-game-content').style.display    = m === 'game'     ? 'block' : 'none';
+  if (m === 'scales')   { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
+  else if (m === 'tabs')     { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
+  else if (m === 'practice') { renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff(); }
+  else if (m === 'game')     { renderHarmonica('game'); renderGameLanes(); renderGameNotes(); requestAnimationFrame(positionAllGameNotes); syncGameSongSelect(); }
   // Re-apply current pitch-detection highlight on the new mode's harmonica
   if (isListening && pitchLoopNote) highlightDetectedNote(pitchLoopNote);
+}
+
+function syncGameSongSelect() {
+  const gameSel = document.getElementById('game-song-select');
+  const mainSel = document.getElementById('song-select');
+  if (gameSel && mainSel) gameSel.value = mainSel.value;
+  const gameBpm = document.getElementById('game-bpm');
+  if (gameBpm) gameBpm.value = practiceBpm;
 }
 
 // =============================================================
@@ -2195,11 +2419,19 @@ function loadSong(songId) {
   currentSongTitle = data.title;
   practiceBpm = data.defaultBpm;
   document.getElementById('practice-bpm').value = data.defaultBpm;
+  const gameBpm = document.getElementById('game-bpm');
+  if (gameBpm) gameBpm.value = data.defaultBpm;
   updatePracticeInfo(`${data.title} · ${data.composer}`);
+  updateGameInfo(`${data.title} · ${data.composer}`);
   renderPracticeSequence();
   renderPracticeStaff();
   renderGameNotes();
-  if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
+  if (currentMode === 'game') requestAnimationFrame(positionAllGameNotes);
+}
+
+function updateGameInfo(text) {
+  const el = document.getElementById('game-song-info');
+  if (el) el.textContent = text;
 }
 
 function updatePracticeInfo(text) {
@@ -2287,10 +2519,6 @@ function stopPracticePlay() {
 
 function startPracticePlay() {
   if (practiceSequence.length === 0) return;
-  if (practiceView === 'game') {
-    startGame();
-    return;
-  }
   practiceIsPlaying = true;
   document.getElementById('practice-play-btn').textContent = '⏸ Pause';
   practiceStepIndex = -1;
@@ -2298,10 +2526,9 @@ function startPracticePlay() {
 }
 
 // =============================================================
-// GAME MODE — Guitar Hero–style falling notes
+// GAME MODE — Guitar Hero–style falling notes (top-level mode)
 // =============================================================
 
-let practiceView = 'notation';   // 'notation' | 'game'
 let gamePlaying = false;
 let gameStartMs = 0;
 let gameRAF = null;
@@ -2312,24 +2539,6 @@ const GAME = {
   LOOKAHEAD: 4.5,       // beats of lookahead visible above hit line
   NOTE_W: 46,
 };
-
-function setPracticeView(v) {
-  if (v === practiceView) return;
-  // If switching while playing, stop first to avoid conflicting timers
-  if (practiceIsPlaying || gamePlaying) stopPracticePlay();
-  practiceView = v;
-  document.querySelectorAll('#practice-view-toggle button').forEach(b =>
-    b.classList.toggle('active', b.dataset.view === v));
-  document.getElementById('practice-notation-view').style.display = v === 'notation' ? 'block' : 'none';
-  document.getElementById('practice-game-view').style.display = v === 'game' ? 'block' : 'none';
-  // Step button only meaningful in notation view
-  document.getElementById('practice-step-btn').style.display = v === 'notation' ? '' : 'none';
-  if (v === 'game') {
-    renderGameLanes();
-    renderGameNotes();
-    positionAllGameNotes();
-  }
-}
 
 function renderGameLanes() {
   const lanes = document.getElementById('game-lanes');
@@ -2395,9 +2604,12 @@ function flashHarmonicaCell(note) {
 }
 
 function startGame() {
-  if (!practiceSequence.length) return;
-  // Make sure layout is ready before measuring positions
-  if (practiceView !== 'game') setPracticeView('game');
+  if (!practiceSequence.length) {
+    const status = document.getElementById('game-status');
+    if (status) status.textContent = 'Choose a song first';
+    return;
+  }
+  if (currentMode !== 'game') setMode('game');
   renderGameLanes();
   renderGameNotes();
   // measure after a frame so layout has settled
@@ -2441,8 +2653,8 @@ function stopGame() {
     d.style.opacity = '0';
     d.style.transform = 'translateY(-9999px)';
   });
-  const btn = document.getElementById('practice-play-btn');
-  if (btn && practiceView === 'game') btn.textContent = '▶ Play';
+  const gameBtn = document.getElementById('game-play-btn');
+  if (gameBtn) gameBtn.textContent = '▶ Play';
   const status = document.getElementById('game-status');
   if (status && status.textContent === 'Playing…') status.textContent = 'Stopped';
 }
@@ -2598,10 +2810,13 @@ async function loadMidiFromFile(file) {
     const droppedNote = dropped > 0 ? ` · ${dropped} out of range, skipped` : '';
     updatePracticeInfo(`Uploaded · ${currentSongTitle} · ${seq.length} note${seq.length===1?'':'s'}${droppedNote}`);
     document.getElementById('song-select').value = '';
+    const gameSel = document.getElementById('game-song-select');
+    if (gameSel) gameSel.value = '';
+    updateGameInfo(`Uploaded · ${currentSongTitle} · ${seq.length} note${seq.length===1?'':'s'}${droppedNote}`);
     renderPracticeSequence();
     renderPracticeStaff();
     renderGameNotes();
-    if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
+    if (currentMode === 'game') requestAnimationFrame(positionAllGameNotes);
   } catch (e) {
     alert('Could not parse MIDI file: ' + e.message);
   }
@@ -2611,14 +2826,17 @@ async function loadMidiFromFile(file) {
 // INIT
 // =============================================================
 function populateSongSelect() {
-  const sel = document.getElementById('song-select');
-  if (!sel) return;
-  Object.entries(SONGS).forEach(([id, s]) => {
-    const opt = document.createElement('option');
-    opt.value = id;
-    opt.textContent = `${s.title} — ${s.composer}`;
-    sel.appendChild(opt);
-  });
+  const targets = ['song-select', 'game-song-select'];
+  for (const id of targets) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    Object.entries(SONGS).forEach(([sid, s]) => {
+      const opt = document.createElement('option');
+      opt.value = sid;
+      opt.textContent = `${s.title} — ${s.composer}`;
+      sel.appendChild(opt);
+    });
+  }
 }
 populateSongSelect();
 renderScaleControls();
@@ -2686,9 +2904,37 @@ document.getElementById('practice-reset-btn').addEventListener('click', () => {
   practiceStepIndex = -1;
   refreshPracticeActiveStep();
 });
-document.querySelectorAll('#practice-view-toggle button').forEach(b => {
-  b.addEventListener('click', () => setPracticeView(b.dataset.view));
+// Game mode controls
+document.getElementById('game-play-btn').addEventListener('click', () => {
+  if (gamePlaying) {
+    stopGame();
+    document.getElementById('game-status').textContent = 'Stopped';
+  } else {
+    startGame();
+    document.getElementById('game-play-btn').textContent = '⏸ Stop';
+  }
 });
+document.getElementById('game-song-select').addEventListener('change', e => {
+  if (e.target.value) loadSong(e.target.value);
+});
+document.getElementById('game-midi-upload').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) loadMidiFromFile(file);
+  e.target.value = '';
+});
+document.getElementById('game-bpm').addEventListener('input', e => {
+  let v = parseInt(e.target.value);
+  if (!isNaN(v)) {
+    practiceBpm = Math.max(40, Math.min(240, v));
+    document.getElementById('practice-bpm').value = practiceBpm;
+  }
+});
+document.querySelectorAll('[data-game-tempo-step]').forEach(b => b.addEventListener('click', () => {
+  practiceBpm = Math.max(40, Math.min(240, practiceBpm + parseInt(b.dataset.gameTempoStep)));
+  document.getElementById('game-bpm').value = practiceBpm;
+  document.getElementById('practice-bpm').value = practiceBpm;
+}));
+
 document.getElementById('practice-bpm').addEventListener('input', e => {
   let v = parseInt(e.target.value);
   if (!isNaN(v)) practiceBpm = Math.max(40, Math.min(240, v));
