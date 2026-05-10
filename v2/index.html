@@ -1340,8 +1340,15 @@ document.getElementById('tweak-tone-select').addEventListener('change', e => {
   else clearSoundfont();
 });
 
-// On init, if a soundfont tone was persisted, start loading it
-if (tweaks.tone in SF_INSTRUMENTS) loadSoundfontFor(tweaks.tone);
+// On init, if a soundfont tone was persisted, start loading it.
+// Deferred via setTimeout so it runs AFTER SF_INSTRUMENTS / loadSoundfontFor
+// are declared further down (their const/function declarations are in TDZ
+// at this point in the script).
+setTimeout(() => {
+  if (typeof SF_INSTRUMENTS !== 'undefined' && tweaks.tone in SF_INSTRUMENTS) {
+    loadSoundfontFor(tweaks.tone);
+  }
+}, 0);
 document.querySelectorAll('#tweak-size button').forEach(b => b.addEventListener('click', () => {
   tweaks.size = b.dataset.size;
   HARMONICA = HARMONICAS[tweaks.size];
