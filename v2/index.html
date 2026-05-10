@@ -2669,6 +2669,84 @@ const SONGS = {
       [64,1],[64,1],[62,1],[62,1],[60,2],
     ]),
   },
+  'brahms-lullaby': {
+    title: 'Brahms Lullaby',
+    composer: 'Brahms · C major',
+    defaultBpm: 80,
+    notes: buildSong([
+      // "Lul-la-by and good-night"
+      [67,1.5],[67,1.5],[64,3],
+      [67,1.5],[67,1.5],[64,3],
+      // "with roses be-dight"
+      [67,1.5],[72,1.5],[71,3],
+      [69,1.5],[67,1.5],[65,1.5],[64,1.5],
+      // "Lay thee down now and rest"
+      [65,1.5],[65,1.5],[62,3],
+      [65,1.5],[65,1.5],[62,3],
+      // "may thy slum-ber be blessed"
+      [65,1.5],[69,1.5],[67,1.5],[65,1.5],[64,1.5],
+      [62,1.5],[60,3],
+    ]),
+  },
+  'mozart-eine-kleine': {
+    title: 'Eine kleine Nachtmusik (opening)',
+    composer: 'Mozart · C major',
+    defaultBpm: 130,
+    notes: buildSong([
+      // C C - G G - / C C - G G - / C E G C G C
+      [60,1.5],[60,0.5],[67,1.5],[67,0.5],
+      [60,1.5],[60,0.5],[67,1.5],[67,0.5],
+      [60,0.5],[64,0.5],[67,0.5],[72,1],[67,0.5],[60,2],
+      // (variation downward)
+      [62,1.5],[62,0.5],[69,1.5],[69,0.5],
+      [62,1.5],[62,0.5],[69,1.5],[69,0.5],
+      [62,0.5],[65,0.5],[69,0.5],[74,1],[69,0.5],[62,2],
+    ]),
+  },
+  'swan-lake': {
+    title: 'Swan Lake (theme)',
+    composer: 'Tchaikovsky · A minor',
+    defaultBpm: 75,
+    notes: buildSong([
+      // A G F E (descending) F E D C
+      [69,2],[67,2],[65,2],[64,2],
+      [65,1],[64,1],[62,1],[60,2],
+      // (repeat with slight variation)
+      [69,2],[67,2],[65,2],[64,2],
+      [65,1],[64,1],[62,1],[64,4],
+    ]),
+  },
+  'pachelbel-canon': {
+    title: 'Pachelbel Canon (theme)',
+    composer: 'Pachelbel · C major',
+    defaultBpm: 90,
+    notes: buildSong([
+      // I-V-vi-iii-IV-I-IV-V chord arpeggios (the famous progression)
+      [72,1],[76,1],[79,1],[76,1],   // C
+      [67,1],[71,1],[74,1],[71,1],   // G
+      [69,1],[72,1],[76,1],[72,1],   // Am
+      [64,1],[67,1],[71,1],[67,1],   // Em
+      [65,1],[69,1],[72,1],[69,1],   // F
+      [60,1],[64,1],[67,1],[64,1],   // C
+      [65,1],[69,1],[72,1],[69,1],   // F
+      [67,1],[71,1],[74,1],[71,1],   // G
+    ]),
+  },
+  'scarborough-fair': {
+    title: 'Scarborough Fair',
+    composer: 'Trad. English · A minor',
+    defaultBpm: 80,
+    notes: buildSong([
+      // "Are you going to Scarborough Fair?"
+      [69,2],[76,2],[76,1],[71,1],[72,3],[71,1],[69,3],
+      // "Parsley, sage, rosemary and thyme"
+      [71,2],[69,2],[64,2],[67,1],[69,1],[67,1],[65,1],[64,2],
+      // "Remember me to one who lives there"
+      [64,1.5],[64,0.5],[64,1],[71,1],[72,2],[71,2],[69,2],[67,2],
+      // "She once was a true love of mine"
+      [69,2],[71,1],[69,1],[67,1],[64,1],[65,2],[64,2],
+    ]),
+  },
   'greensleeves': {
     title: 'Greensleeves',
     composer: 'Trad. · A minor (★ uses slide on F♯ / G♯)',
