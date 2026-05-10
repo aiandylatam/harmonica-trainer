@@ -751,6 +751,113 @@
   .seg button.active {
     background: var(--ink); color: var(--app-bg);
   }
+
+  /* ============================================================
+     PRACTICE VIEW TOGGLE + GAME CANVAS (Guitar Hero–style)
+     ============================================================ */
+  .view-toggle {
+    display: inline-flex;
+    background: var(--panel-2);
+    border-radius: 8px; padding: 3px;
+    border: 1px solid var(--hairline);
+    margin-right: 8px;
+  }
+  .view-toggle button {
+    padding: 6px 14px; background: transparent; border: none;
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-3); cursor: pointer; border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .view-toggle button.active {
+    background: var(--ink); color: var(--app-bg);
+  }
+  .game-canvas {
+    position: relative;
+    width: 100%; height: 380px;
+    background: linear-gradient(180deg, var(--panel-2) 0%, #f7f4ed 100%);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .game-lanes {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: 84px repeat(var(--hole-count, 12), minmax(50px, 1fr));
+    gap: 6px;
+    padding: 0 18px;
+    pointer-events: none;
+  }
+  .game-lane {
+    background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.025) 100%);
+    border-left: 1px dashed rgba(0,0,0,0.06);
+    border-right: 1px dashed rgba(0,0,0,0.06);
+  }
+  .game-notes {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .game-note {
+    position: absolute;
+    width: 46px;
+    border-radius: 5px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-weight: 700;
+    text-align: center;
+    will-change: transform;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .game-note.blow {
+    background: linear-gradient(180deg, #2a2a30 0%, #16161a 100%);
+    color: var(--blow-text);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.18);
+  }
+  .game-note.draw {
+    background: linear-gradient(180deg, #ffffff 0%, #efebe1 100%);
+    color: var(--draw-text);
+    border: 1px solid var(--draw-stroke);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .game-note.slide-rim {
+    box-shadow: inset 0 0 0 2px var(--slide), 0 1px 2px rgba(0,0,0,0.18);
+  }
+  .game-note .gn-hole { font-size: 14px; line-height: 1.05; }
+  .game-note .gn-name { font-size: 10px; opacity: 0.85; line-height: 1; margin-top: 1px; }
+  .game-note.played { opacity: 0.25; filter: grayscale(0.5); }
+  .game-hit-line {
+    position: absolute; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent-slide);
+    box-shadow: 0 0 14px var(--accent-slide-soft), 0 0 4px var(--accent-slide);
+    z-index: 5;
+  }
+  .game-hit-line::before, .game-hit-line::after {
+    content: '';
+    position: absolute; top: -5px; width: 10px; height: 13px;
+    background: var(--accent-slide);
+    border-radius: 2px;
+  }
+  .game-hit-line::before { left: 6px; }
+  .game-hit-line::after { right: 6px; }
+  .game-status {
+    position: absolute; bottom: 4px; right: 12px;
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--ink-3); letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+  .cell.game-flash {
+    animation: game-flash-anim 0.5s ease-out;
+  }
+  @keyframes game-flash-anim {
+    0%   { box-shadow: 0 0 0 0 var(--accent-slide); }
+    25%  { box-shadow: 0 0 0 4px var(--accent-slide), 0 0 22px var(--accent-slide-soft); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
   .pitch-row {
     display: flex; align-items: center; gap: 8px;
   }
@@ -1011,22 +1118,41 @@
     <div class="section" style="margin-top:24px">
       <div class="section-header">
         <h2>Notes <span class="count" id="practice-count"></span></h2>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <div class="view-toggle" id="practice-view-toggle">
+            <button data-view="notation" class="active">Notation</button>
+            <button data-view="game">Game</button>
+          </div>
           <button class="btn primary" id="practice-play-btn">▶ Play</button>
           <button class="btn" id="practice-step-btn">Step →</button>
           <button class="btn" id="practice-reset-btn">⟲</button>
         </div>
       </div>
-      <div class="sequence" id="practice-sequence-container">
-        <div class="sequence-empty" id="practice-sequence-empty">Choose a song or upload a MIDI file to begin</div>
-        <div class="chips" id="practice-chips" style="display:none"></div>
+
+      <!-- Notation view (chips + staff) -->
+      <div id="practice-notation-view">
+        <div class="sequence" id="practice-sequence-container">
+          <div class="sequence-empty" id="practice-sequence-empty">Choose a song or upload a MIDI file to begin</div>
+          <div class="chips" id="practice-chips" style="display:none"></div>
+        </div>
+
+        <div class="staff-panel" style="margin-top:16px">
+          <div class="staff-header">
+            <h2>Staff <span class="count">classical notation</span></h2>
+          </div>
+          <div class="staff-svg-wrap" id="staff-practice"></div>
+        </div>
       </div>
 
-      <div class="staff-panel" style="margin-top:16px">
-        <div class="staff-header">
-          <h2>Staff <span class="count">classical notation</span></h2>
+      <!-- Game view (Guitar Hero–style falling notes) -->
+      <div id="practice-game-view" style="display:none">
+        <div class="game-canvas" id="game-canvas">
+          <div class="game-lanes" id="game-lanes"></div>
+          <div class="game-notes" id="game-notes"></div>
+          <div class="game-hit-line" id="game-hit-line"></div>
+          <div class="game-status" id="game-status">Press Play</div>
         </div>
-        <div class="staff-svg-wrap" id="staff-practice"></div>
+        <p class="info" style="margin-top:0">Notes fall from the top — when one crosses the gold line, that's when to play it. Color encodes blow / draw, gold rim = use the slider.</p>
       </div>
     </div>
   </div>
@@ -1168,6 +1294,8 @@ function rerenderEverything() {
       }).filter(Boolean);
     }
     renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff();
+    renderGameLanes(); renderGameNotes();
+    if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
   }
 }
 
@@ -1935,7 +2063,7 @@ function setMode(m) {
   document.getElementById('mode-practice-content').style.display = m === 'practice' ? 'block' : 'none';
   if (m === 'scales') { renderHarmonica('scales'); renderScaleNotesDisplay(); renderScalesStaff(); }
   else if (m === 'tabs') { renderHarmonica('tabs'); renderSequence(); renderSavedTabs(); }
-  else if (m === 'practice') { renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff(); }
+  else if (m === 'practice') { renderHarmonica('practice'); renderPracticeSequence(); renderPracticeStaff(); renderGameLanes(); renderGameNotes(); }
   // Re-apply current pitch-detection highlight on the new mode's harmonica
   if (isListening && pitchLoopNote) highlightDetectedNote(pitchLoopNote);
 }
@@ -2061,7 +2189,7 @@ function songToPracticeSequence(songId) {
 
 function loadSong(songId) {
   const data = songToPracticeSequence(songId);
-  if (!data) { practiceSequence = []; currentSongTitle = ''; renderPracticeSequence(); renderPracticeStaff(); updatePracticeInfo(''); return; }
+  if (!data) { practiceSequence = []; currentSongTitle = ''; renderPracticeSequence(); renderPracticeStaff(); renderGameNotes(); updatePracticeInfo(''); return; }
   practiceSequence = data.sequence;
   practiceStepIndex = -1;
   currentSongTitle = data.title;
@@ -2070,6 +2198,8 @@ function loadSong(songId) {
   updatePracticeInfo(`${data.title} · ${data.composer}`);
   renderPracticeSequence();
   renderPracticeStaff();
+  renderGameNotes();
+  if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
 }
 
 function updatePracticeInfo(text) {
@@ -2149,16 +2279,196 @@ function stopPracticePlay() {
   if (practicePlayTimer) clearTimeout(practicePlayTimer);
   practicePlayTimer = null;
   practiceIsPlaying = false;
+  // Also stop any active game-mode playback
+  stopGame();
   const btn = document.getElementById('practice-play-btn');
   if (btn) btn.textContent = '▶ Play';
 }
 
 function startPracticePlay() {
   if (practiceSequence.length === 0) return;
+  if (practiceView === 'game') {
+    startGame();
+    return;
+  }
   practiceIsPlaying = true;
   document.getElementById('practice-play-btn').textContent = '⏸ Pause';
   practiceStepIndex = -1;
   scheduleNextPracticeStep();
+}
+
+// =============================================================
+// GAME MODE — Guitar Hero–style falling notes
+// =============================================================
+
+let practiceView = 'notation';   // 'notation' | 'game'
+let gamePlaying = false;
+let gameStartMs = 0;
+let gameRAF = null;
+let gameAudioTimers = [];
+const GAME = {
+  HIT_Y: 320,           // y of the hit line within the canvas
+  PX_PER_BEAT: 70,      // fall speed
+  LOOKAHEAD: 4.5,       // beats of lookahead visible above hit line
+  NOTE_W: 46,
+};
+
+function setPracticeView(v) {
+  if (v === practiceView) return;
+  // If switching while playing, stop first to avoid conflicting timers
+  if (practiceIsPlaying || gamePlaying) stopPracticePlay();
+  practiceView = v;
+  document.querySelectorAll('#practice-view-toggle button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === v));
+  document.getElementById('practice-notation-view').style.display = v === 'notation' ? 'block' : 'none';
+  document.getElementById('practice-game-view').style.display = v === 'game' ? 'block' : 'none';
+  // Step button only meaningful in notation view
+  document.getElementById('practice-step-btn').style.display = v === 'notation' ? '' : 'none';
+  if (v === 'game') {
+    renderGameLanes();
+    renderGameNotes();
+    positionAllGameNotes();
+  }
+}
+
+function renderGameLanes() {
+  const lanes = document.getElementById('game-lanes');
+  if (!lanes) return;
+  const holeCount = HARMONICA.length;
+  lanes.style.setProperty('--hole-count', holeCount);
+  // First column matches the harmonica's row-label gutter (empty here).
+  let html = '<div></div>';
+  for (let h = 0; h < holeCount; h++) html += '<div class="game-lane"></div>';
+  lanes.innerHTML = html;
+  // Position the hit line. We anchor it at HIT_Y from the top.
+  const hitLine = document.getElementById('game-hit-line');
+  if (hitLine) hitLine.style.top = (GAME.HIT_Y - 1) + 'px';
+}
+
+function renderGameNotes() {
+  const container = document.getElementById('game-notes');
+  if (!container) return;
+  if (!practiceSequence.length) { container.innerHTML = ''; return; }
+  container.innerHTML = practiceSequence.map((note, i) => {
+    const cls = actionKeyToCls(note.actionKey);
+    const h = Math.max(note.duration * GAME.PX_PER_BEAT - 4, 24);
+    return `<div class="game-note ${cls}" data-gidx="${i}" style="height:${h}px">
+      <div class="gn-hole">${note.hole}</div>
+      <div class="gn-name">${noteName(note.note)}</div>
+    </div>`;
+  }).join('');
+}
+
+// Compute the x center of each hole-lane based on the harmonica grid below
+// (so falling notes line up with the actual cells the player should hit).
+function positionAllGameNotes() {
+  const canvas = document.getElementById('game-canvas');
+  const lanes = document.getElementById('game-lanes');
+  if (!canvas || !lanes) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const laneEls = lanes.querySelectorAll('.game-lane');
+  const xByIdx = [];
+  laneEls.forEach((lane, i) => {
+    const r = lane.getBoundingClientRect();
+    xByIdx.push(r.left - canvasRect.left + r.width / 2);
+  });
+  document.querySelectorAll('.game-note').forEach(div => {
+    const i = parseInt(div.dataset.gidx);
+    const note = practiceSequence[i];
+    if (!note) return;
+    const idx = indexForHoleNum(note.hole);
+    const x = xByIdx[idx];
+    if (x == null) return;
+    div.style.left = (x - GAME.NOTE_W / 2) + 'px';
+  });
+}
+
+function flashHarmonicaCell(note) {
+  // Flash on whichever harmonica grids exist (practice + game share the same data-attrs).
+  document.querySelectorAll(
+    `.cell[data-hole="${CSS.escape(String(note.hole))}"][data-action="${note.actionKey}"]`
+  ).forEach(el => {
+    el.classList.remove('game-flash');
+    void el.offsetWidth;
+    el.classList.add('game-flash');
+  });
+}
+
+function startGame() {
+  if (!practiceSequence.length) return;
+  // Make sure layout is ready before measuring positions
+  if (practiceView !== 'game') setPracticeView('game');
+  renderGameLanes();
+  renderGameNotes();
+  // measure after a frame so layout has settled
+  requestAnimationFrame(() => {
+    positionAllGameNotes();
+    document.querySelectorAll('.game-note.played').forEach(d => d.classList.remove('played'));
+    gamePlaying = true;
+    gameStartMs = performance.now();
+    document.getElementById('practice-play-btn').textContent = '⏸ Stop';
+    document.getElementById('game-status').textContent = 'Playing…';
+    // Schedule audio + visual flash for each note via setTimeout
+    gameAudioTimers = practiceSequence.map(note => {
+      const delayMs = note.time * 60000 / practiceBpm;
+      return setTimeout(() => {
+        playTone(note.note, Math.min(note.duration * 60 / practiceBpm * 0.95, 1.5));
+        flashHarmonicaCell(note);
+        const el = document.querySelector(`.game-note[data-gidx="${practiceSequence.indexOf(note)}"]`);
+        if (el) el.classList.add('played');
+      }, delayMs);
+    });
+    const lastNote = practiceSequence[practiceSequence.length - 1];
+    const endDelay = (lastNote.time + lastNote.duration + 1.5) * 60000 / practiceBpm;
+    gameAudioTimers.push(setTimeout(() => {
+      document.getElementById('game-status').textContent = 'Done — Press Play to replay';
+      stopGame();
+    }, endDelay));
+    gameTick();
+  });
+}
+
+function stopGame() {
+  if (gameAudioTimers.length) {
+    gameAudioTimers.forEach(t => clearTimeout(t));
+    gameAudioTimers = [];
+  }
+  if (gameRAF) cancelAnimationFrame(gameRAF);
+  gameRAF = null;
+  gamePlaying = false;
+  // Reset visuals (hide all notes off-screen)
+  document.querySelectorAll('.game-note').forEach(d => {
+    d.style.opacity = '0';
+    d.style.transform = 'translateY(-9999px)';
+  });
+  const btn = document.getElementById('practice-play-btn');
+  if (btn && practiceView === 'game') btn.textContent = '▶ Play';
+  const status = document.getElementById('game-status');
+  if (status && status.textContent === 'Playing…') status.textContent = 'Stopped';
+}
+
+function gameTick() {
+  if (!gamePlaying) return;
+  const elapsedMs = performance.now() - gameStartMs;
+  const elapsedBeats = (elapsedMs / 60000) * practiceBpm;
+  const HIT_Y = GAME.HIT_Y;
+  const PX = GAME.PX_PER_BEAT;
+  document.querySelectorAll('.game-note').forEach(div => {
+    const i = parseInt(div.dataset.gidx);
+    const note = practiceSequence[i];
+    if (!note) return;
+    const beatsUntilStart = note.time - elapsedBeats;
+    const beatsUntilEnd   = note.time + note.duration - elapsedBeats;
+    if (beatsUntilStart > GAME.LOOKAHEAD || beatsUntilEnd < -1.2) {
+      div.style.opacity = '0';
+    } else {
+      // Top of bar reaches HIT_Y when the note ENDS — bottom is at HIT_Y when it STARTS
+      const top = HIT_Y - beatsUntilEnd * PX;
+      div.style.transform = `translateY(${top}px)`;
+      div.style.opacity = '1';
+    }
+  });
+  gameRAF = requestAnimationFrame(gameTick);
 }
 
 function scheduleNextPracticeStep() {
@@ -2290,6 +2600,8 @@ async function loadMidiFromFile(file) {
     document.getElementById('song-select').value = '';
     renderPracticeSequence();
     renderPracticeStaff();
+    renderGameNotes();
+    if (practiceView === 'game') requestAnimationFrame(positionAllGameNotes);
   } catch (e) {
     alert('Could not parse MIDI file: ' + e.message);
   }
@@ -2373,6 +2685,9 @@ document.getElementById('practice-reset-btn').addEventListener('click', () => {
   stopPracticePlay();
   practiceStepIndex = -1;
   refreshPracticeActiveStep();
+});
+document.querySelectorAll('#practice-view-toggle button').forEach(b => {
+  b.addEventListener('click', () => setPracticeView(b.dataset.view));
 });
 document.getElementById('practice-bpm').addEventListener('input', e => {
   let v = parseInt(e.target.value);
