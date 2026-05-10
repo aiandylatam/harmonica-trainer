@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Music&display=swap" rel="stylesheet">
 <script data-goatcounter="https://aiandylatam.goatcounter.com/count"
         async src="//gc.zgo.at/count.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
 <style>
   /* ============================================================
      LIGHT THEME — paper / ink / gold
@@ -1221,13 +1222,35 @@
   </div>
   <div class="tweak-row">
     <label>Tone</label>
-    <div class="seg" id="tweak-tone">
-      <button data-tone="harmonica" class="active">Harm</button>
-      <button data-tone="flute">Flute</button>
-      <button data-tone="brass">Brass</button>
-      <button data-tone="piano">Piano</button>
-      <button data-tone="beep">Beep</button>
-    </div>
+    <select id="tweak-tone-select" style="width:100%;padding:8px 10px;border:1px solid var(--hairline-strong);border-radius:6px;background:var(--panel);font-family:var(--font-mono);font-size:12px;color:var(--ink);cursor:pointer">
+      <optgroup label="Instant (synth)">
+        <option value="harmonica">Harmonica (synth)</option>
+        <option value="flute">Flute (synth)</option>
+        <option value="brass">Brass (synth)</option>
+        <option value="piano">Piano (synth)</option>
+        <option value="beep">Beep (v1 default)</option>
+      </optgroup>
+      <optgroup label="Real samples — first load is ~1–2 MB">
+        <option value="sf-harmonica">Harmonica</option>
+        <option value="sf-flute">Flute</option>
+        <option value="sf-trumpet">Trumpet</option>
+        <option value="sf-muted-trumpet">Muted Trumpet</option>
+        <option value="sf-trombone">Trombone</option>
+        <option value="sf-soprano-sax">Soprano Sax</option>
+        <option value="sf-alto-sax">Alto Sax</option>
+        <option value="sf-tenor-sax">Tenor Sax</option>
+        <option value="sf-brass-section">Brass Section</option>
+        <option value="sf-acoustic-bass">Acoustic Bass</option>
+        <option value="sf-contrabass">Contrabass</option>
+        <option value="sf-acoustic-grand-piano">Acoustic Grand Piano</option>
+        <option value="sf-electric-piano-1">Electric Piano</option>
+        <option value="sf-violin">Violin</option>
+        <option value="sf-cello">Cello</option>
+        <option value="sf-clarinet">Clarinet</option>
+        <option value="sf-oboe">Oboe</option>
+      </optgroup>
+    </select>
+    <div id="tone-loading-status" class="info" style="margin-top:6px;min-height:14px;font-size:11px"></div>
   </div>
   <div class="tweak-row">
     <label>Reference pitch (A4)</label>
@@ -1288,7 +1311,8 @@ function applyTweaks(t) {
   document.querySelectorAll('#tweak-accent .swatch').forEach(s => s.classList.toggle('active', s.dataset.accent === t.accent));
   document.querySelectorAll('#tweak-density button').forEach(b => b.classList.toggle('active', b.dataset.density === t.density));
   document.querySelectorAll('#tweak-size button').forEach(b => b.classList.toggle('active', b.dataset.size === String(t.size)));
-  document.querySelectorAll('#tweak-tone button').forEach(b => b.classList.toggle('active', b.dataset.tone === t.tone));
+  const toneSel = document.getElementById('tweak-tone-select');
+  if (toneSel && toneSel.value !== t.tone) toneSel.value = t.tone;
   const pitchInput = document.getElementById('tweak-pitch');
   if (pitchInput) pitchInput.value = t.pitch;
   document.querySelectorAll('.pitch-presets button').forEach(b => b.classList.toggle('active', parseInt(b.dataset.pitch) === t.pitch));
@@ -1307,7 +1331,17 @@ document.getElementById('tweaks-toggle').addEventListener('click', () => {
 });
 document.querySelectorAll('#tweak-accent .swatch').forEach(s => s.addEventListener('click', () => { tweaks.accent = s.dataset.accent; applyTweaks(tweaks); persistTweaks(); }));
 document.querySelectorAll('#tweak-density button').forEach(b => b.addEventListener('click', () => { tweaks.density = b.dataset.density; applyTweaks(tweaks); persistTweaks(); }));
-document.querySelectorAll('#tweak-tone button').forEach(b => b.addEventListener('click', () => { tweaks.tone = b.dataset.tone; applyTweaks(tweaks); persistTweaks(); }));
+document.getElementById('tweak-tone-select').addEventListener('change', e => {
+  tweaks.tone = e.target.value;
+  applyTweaks(tweaks);
+  persistTweaks();
+  // If the new tone is a soundfont, kick off load (or use cache); otherwise clear active SF.
+  if (tweaks.tone in SF_INSTRUMENTS) loadSoundfontFor(tweaks.tone);
+  else clearSoundfont();
+});
+
+// On init, if a soundfont tone was persisted, start loading it
+if (tweaks.tone in SF_INSTRUMENTS) loadSoundfontFor(tweaks.tone);
 document.querySelectorAll('#tweak-size button').forEach(b => b.addEventListener('click', () => {
   tweaks.size = b.dataset.size;
   HARMONICA = HARMONICAS[tweaks.size];
@@ -1735,8 +1769,85 @@ const TONE_PRESETS = {
   beep:      beepTone,
 };
 
+// Soundfont-based instruments (loaded on demand from gleitz/midi-js-soundfonts via CDN).
+// Map: tone-id used in tweaks -> General-MIDI instrument name expected by Soundfont.instrument().
+const SF_INSTRUMENTS = {
+  'sf-harmonica':            'harmonica',
+  'sf-flute':                'flute',
+  'sf-trumpet':              'trumpet',
+  'sf-muted-trumpet':        'muted_trumpet',
+  'sf-trombone':             'trombone',
+  'sf-soprano-sax':          'soprano_sax',
+  'sf-alto-sax':             'alto_sax',
+  'sf-tenor-sax':            'tenor_sax',
+  'sf-brass-section':        'brass_section',
+  'sf-acoustic-bass':        'acoustic_bass',
+  'sf-contrabass':           'contrabass',
+  'sf-acoustic-grand-piano': 'acoustic_grand_piano',
+  'sf-electric-piano-1':     'electric_piano_1',
+  'sf-violin':               'violin',
+  'sf-cello':                'cello',
+  'sf-clarinet':             'clarinet',
+  'sf-oboe':                 'oboe',
+};
+const sfCache = {};
+let activeSoundfont = null;       // resolved instrument object once loaded
+let activeSoundfontKey = null;    // the SF_INSTRUMENTS value (e.g. 'flute') currently active
+let soundfontLoading = false;
+
+function setLoadingStatus(text) {
+  const el = document.getElementById('tone-loading-status');
+  if (el) el.textContent = text || '';
+}
+
+async function loadSoundfontFor(toneId) {
+  const gmName = SF_INSTRUMENTS[toneId];
+  if (!gmName) return;
+  if (sfCache[gmName]) {
+    activeSoundfont = sfCache[gmName];
+    activeSoundfontKey = gmName;
+    return;
+  }
+  if (!window.Soundfont) {
+    setLoadingStatus('Soundfont library failed to load — falling back to synth');
+    return;
+  }
+  soundfontLoading = true;
+  setLoadingStatus(`Loading ${gmName.replace(/_/g, ' ')}…`);
+  try {
+    const ctx = ensureAudioCtx();
+    const inst = await Soundfont.instrument(ctx, gmName, { soundfont: 'MusyngKite' });
+    sfCache[gmName] = inst;
+    activeSoundfont = inst;
+    activeSoundfontKey = gmName;
+    setLoadingStatus(`Loaded · ${gmName.replace(/_/g, ' ')}`);
+    setTimeout(() => { if (activeSoundfontKey === gmName) setLoadingStatus(''); }, 1500);
+  } catch (e) {
+    setLoadingStatus('Could not load — falling back to synth');
+    activeSoundfont = null;
+    activeSoundfontKey = null;
+  } finally {
+    soundfontLoading = false;
+  }
+}
+
+function clearSoundfont() {
+  activeSoundfont = null;
+  activeSoundfontKey = null;
+  setLoadingStatus('');
+}
+
 function playTone(noteWithOct, duration = 0.45) {
-  const fn = TONE_PRESETS[tweaks.tone] || TONE_PRESETS.harmonica;
+  const tone = tweaks.tone;
+  // Soundfont path: use the loaded instrument if it matches the current tone selection.
+  if (tone in SF_INSTRUMENTS && activeSoundfont && activeSoundfontKey === SF_INSTRUMENTS[tone]) {
+    try {
+      activeSoundfont.play(noteWithOct, ensureAudioCtx().currentTime, { duration, gain: 1.6 });
+      return;
+    } catch(e) { /* fall through to synth */ }
+  }
+  // Synth fallback (covers presets + the wait-while-soundfont-loads case)
+  const fn = TONE_PRESETS[tone] || TONE_PRESETS.harmonica;
   fn(noteWithOct, duration);
 }
 function autoCorrelate(buf, sampleRate) {
