@@ -1793,7 +1793,7 @@ const SF_INSTRUMENTS = {
 const sfCache = {};
 let activeSoundfont = null;       // resolved instrument object once loaded
 let activeSoundfontKey = null;    // the SF_INSTRUMENTS value (e.g. 'flute') currently active
-let soundfontLoading = false;
+let soundfontRequestId = 0;       // monotonic counter — guards against stale loads winning the race
 
 function setLoadingStatus(text) {
   const el = document.getElementById('tone-loading-status');
@@ -1803,31 +1803,36 @@ function setLoadingStatus(text) {
 async function loadSoundfontFor(toneId) {
   const gmName = SF_INSTRUMENTS[toneId];
   if (!gmName) return;
+  // Cache hit — switch immediately, advance the request id so any in-flight
+  // older load doesn't overwrite us when it resolves later.
   if (sfCache[gmName]) {
+    soundfontRequestId++;
     activeSoundfont = sfCache[gmName];
     activeSoundfontKey = gmName;
+    setLoadingStatus('');
     return;
   }
   if (!window.Soundfont) {
     setLoadingStatus('Soundfont library failed to load — falling back to synth');
     return;
   }
-  soundfontLoading = true;
+  const myReq = ++soundfontRequestId;
   setLoadingStatus(`Loading ${gmName.replace(/_/g, ' ')}…`);
   try {
     const ctx = ensureAudioCtx();
     const inst = await Soundfont.instrument(ctx, gmName, { soundfont: 'MusyngKite' });
     sfCache[gmName] = inst;
+    // Only commit if user hasn't switched to a different instrument since we started.
+    if (myReq !== soundfontRequestId) return;
     activeSoundfont = inst;
     activeSoundfontKey = gmName;
     setLoadingStatus(`Loaded · ${gmName.replace(/_/g, ' ')}`);
     setTimeout(() => { if (activeSoundfontKey === gmName) setLoadingStatus(''); }, 1500);
   } catch (e) {
+    if (myReq !== soundfontRequestId) return;
     setLoadingStatus('Could not load — falling back to synth');
     activeSoundfont = null;
     activeSoundfontKey = null;
-  } finally {
-    soundfontLoading = false;
   }
 }
 
@@ -2000,7 +2005,9 @@ function highlightDetectedNote(noteWithOct) {
   clearListeningHighlights();
   const harm = document.getElementById(HARM_ID_BY_MODE[currentMode]);
   if (harm) harm.querySelectorAll(`.cell[data-note="${noteWithOct}"]`).forEach(el => el.classList.add('listening-match'));
-  setStaffDetected(STAFF_ID_BY_MODE[currentMode], noteWithOct);
+  // Game mode has no staff; only call when the current mode has one mapped.
+  const staffId = STAFF_ID_BY_MODE[currentMode];
+  if (staffId) setStaffDetected(staffId, noteWithOct);
 }
 function clearListeningHighlights() {
   document.querySelectorAll('.cell.listening-match').forEach(el => el.classList.remove('listening-match'));
@@ -2597,6 +2604,11 @@ function loadSong(songId) {
   practiceStepIndex = -1;
   currentSongTitle = data.title;
   practiceBpm = data.defaultBpm;
+  // Keep both Practice and Game controls in sync regardless of which selector triggered this.
+  const practiceSel = document.getElementById('song-select');
+  const gameSel = document.getElementById('game-song-select');
+  if (practiceSel && practiceSel.value !== songId) practiceSel.value = songId;
+  if (gameSel && gameSel.value !== songId) gameSel.value = songId;
   document.getElementById('practice-bpm').value = data.defaultBpm;
   const gameBpm = document.getElementById('game-bpm');
   if (gameBpm) gameBpm.value = data.defaultBpm;
