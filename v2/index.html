@@ -816,7 +816,10 @@
   .game-note.blow {
     background: linear-gradient(180deg, #2a2a30 0%, #16161a 100%);
     color: var(--blow-text);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.18);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,0.22),   /* visible top highlight separates adjacent blow notes */
+      inset 0 -1px 0 rgba(0,0,0,0.55),
+      0 1px 3px rgba(0,0,0,0.22);
   }
   .game-note.draw {
     background: linear-gradient(180deg, #ffffff 0%, #efebe1 100%);
@@ -2867,7 +2870,7 @@ function renderGameNotes() {
   if (!practiceSequence.length) { container.innerHTML = ''; return; }
   container.innerHTML = practiceSequence.map((note, i) => {
     const cls = actionKeyToCls(note.actionKey);
-    const h = Math.max(note.duration * GAME.PX_PER_BEAT - 4, 24);
+    const h = Math.max(note.duration * GAME.PX_PER_BEAT - 8, 24);
     return `<div class="game-note ${cls}" data-gidx="${i}" style="height:${h}px">
       <div class="gn-hole">${note.hole}</div>
       <div class="gn-name">${noteName(note.note)}</div>
@@ -2931,7 +2934,7 @@ function startGame() {
     gameAudioTimers = practiceSequence.map(note => {
       const delayMs = note.time * 60000 / practiceBpm;
       return setTimeout(() => {
-        playTone(note.note, Math.min(note.duration * 60 / practiceBpm * 0.95, 1.5));
+        playTone(note.note, Math.min(note.duration * 60 / practiceBpm * 0.95, 8));
         flashHarmonicaCell(note);
         const el = document.querySelector(`.game-note[data-gidx="${practiceSequence.indexOf(note)}"]`);
         if (el) el.classList.add('played');
